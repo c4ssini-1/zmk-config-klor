@@ -3,7 +3,10 @@ if SHIELD_KLOR_LEFT
     config ZMK_KEYBOARD_NAME
         default "KLOR"
 
-    config ZMK_SPLIT_BLE_ROLE_CENTRAL
+    # Renamed from ZMK_SPLIT_BLE_ROLE_CENTRAL when ZMK gained wired split
+    # support. Under the old name this defaulted to "n", so the left half
+    # would have built as a peripheral and the keyboard would not work.
+    config ZMK_SPLIT_ROLE_CENTRAL
         default y
 
 endif # LEFT

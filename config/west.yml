@@ -5,7 +5,11 @@ manifest:
   projects:
     - name: zmk
       remote: zmkfirmware
-      revision: main
+      # Pinned so your builds are reproducible: upstream tracked "main"
+      # unpinned, which is why this config silently rotted between 2024 and now.
+      # This shield was verified against exactly this commit (2026-08-11).
+      # To move to a newer ZMK, bump this SHA and rebuild.
+      revision: 6e2ef41e022d555b10f116e395832913f71717b3
       import: app/west.yml
   self:
     path: config

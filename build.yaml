@@ -1,21 +1,22 @@
-# This file generates the GitHub Actions matrix
-# For simple board + shield combinations, add them
-# to the top level board and shield arrays, for more
-# control, add individual board + shield combinations to
-# the `include` property, e.g:
+# This file generates the GitHub Actions matrix.
 #
-# board: [ "nice_nano_v2" ]
-# shield: [ "corne_left", "corne_right" ]
-# include:
-#   - board: bdn9_rev2
-#   - board: nice_nano_v2
-#     shield: reviung41
-#
+# Board naming note: ZMK moved to Zephyr's hardware-model-v2 board targets, so
+# the old "nice_nano_v2" target no longer exists. The nice!nano is now a single
+# board with a "zmk" variant, and v1 vs v2 is a board *revision* (default 2.0.0).
+#   nice!nano v2 -> nice_nano//zmk
+#   nice!nano v1 -> nice_nano@1//zmk
 
+# artifact-name keeps the .uf2 filenames readable. Without it the board target
+# is mangled into the name and you get "klor_left-nice_nano__zmk-zmk.uf2".
 include:
-  - board: nice_nano_v2
+  - board: nice_nano//zmk
     shield: klor_left
-  - board: nice_nano_v2
+    artifact-name: klor_left
+  - board: nice_nano//zmk
     shield: klor_right
-# - board: nice_nano_v2
-#    shield: settings_reset
+    artifact-name: klor_right
+
+# Uncomment to also build a settings-reset image. Flash it to a half to wipe
+# its stored Bluetooth pairings, then flash the normal firmware back.
+# - board: nice_nano//zmk
+#   shield: settings_reset
