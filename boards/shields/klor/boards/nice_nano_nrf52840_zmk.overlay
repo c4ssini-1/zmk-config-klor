@@ -1,13 +1,37 @@
+/*
+ * RGB underglow wiring for the nice!nano.
+ *
+ * Uses SPI3. This was &spi1 (inherited from upstream) and the strip never lit:
+ * the behavior fired and the driver ran, but every transfer died with
+ *
+ *     <err> spi_nrfx_spim: Timeout waiting for transfer complete
+ *     <err> zmk: Failed to update the RGB strip (-116)   // -ETIMEDOUT
+ *
+ * repeating on every underglow tick. On the nRF52840, SPIM0/1/2 share their
+ * hardware instance with the TWIM/TWIS/SPIS peripherals, while SPIM3 is a
+ * standalone high-speed instance. Every one of the 27 nice!nano shields in the
+ * ZMK tree drives WS2812 from spi3; only the nrfmicro overlays use spi1, which
+ * is why the sibling nrfmicro files here are correct as they stand.
+ *
+ * Keep this on spi3 unless you have a specific reason not to.
+ */
+
 #include <dt-bindings/led/led.h>
 
 &pinctrl {
-	spi1_default: spi1_default {
+	spi3_default: spi3_default {
 		group1 {
+			/*
+			 * MOSI only, and that is deliberate: WS2812 is a one-wire
+			 * protocol, so the bit pattern is shifted out of MOSI and
+			 * SCK is left unassigned. P0.06 is pro_micro pin 1 (TX0),
+			 * which the KLOR rev 1.3 schematic shows carrying the LED net.
+			 */
 			psels = <NRF_PSEL(SPIM_MOSI, 0, 6)>;
 		};
 	};
 
-	spi1_sleep: spi1_sleep {
+	spi3_sleep: spi3_sleep {
 		group1 {
 			psels = <NRF_PSEL(SPIM_MOSI, 0, 6)>;
 			low-power-enable;
@@ -15,24 +39,23 @@
 	};
 };
 
-&spi1 {
+&spi3 {
 	compatible = "nordic,nrf-spim";
 	status = "okay";
-	
-	pinctrl-0 = <&spi1_default>;
-	pinctrl-1 = <&spi1_sleep>;
+
+	pinctrl-0 = <&spi3_default>;
+	pinctrl-1 = <&spi3_sleep>;
 	pinctrl-names = "default", "sleep";
 
 	led_strip: ws2812@0 {
 		compatible = "worldsemi,ws2812-spi";
-		label = "WS2812";
 
 		/* SPI */
 		reg = <0>; /* ignored, but necessary for SPI bindings */
 		spi-max-frequency = <4000000>;
 
-		/* WS2812 */
-		chain-length = <21>; /* arbitrary; change at will */
+		/* WS2812 -- 21 SK6812 minis per half on the KLOR. */
+		chain-length = <21>;
 		spi-one-frame = <0x70>;
 		spi-zero-frame = <0x40>;
 
