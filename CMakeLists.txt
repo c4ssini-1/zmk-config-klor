@@ -1,5 +1,4 @@
-# TEMPORARY -- remove with the harness. See Kconfig / src/klor_led_map.c.
-if(CONFIG_KLOR_LED_MAP_HARNESS)
+if(CONFIG_KLOR_RGB_REACTIVE)
   zephyr_library()
-  zephyr_library_sources(src/klor_led_map.c)
+  zephyr_library_sources(src/klor_rgb_reactive.c)
 endif()

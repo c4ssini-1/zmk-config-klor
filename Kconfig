@@ -1,11 +1,30 @@
-# TEMPORARY -- delete along with src/klor_led_map.c once the LED map is known.
-config KLOR_LED_MAP_HARNESS
-    bool "KLOR LED mapping harness"
+config KLOR_RGB_REACTIVE
+    bool "KLOR per-key reactive underglow"
     depends on LED_STRIP
     help
-      Walks a single lit LED along the underglow strip so the physical key over
-      each chain index can be identified. Needed because per-key reactive
-      lighting requires a key-position to LED-index table.
+      White underglow where the LED under a pressed key brightens and returns
+      to idle on release.
 
-      Takes exclusive ownership of the strip, so ZMK_RGB_UNDERGLOW must be n
-      while this is enabled.
+      Takes exclusive ownership of the led_strip device, so ZMK_RGB_UNDERGLOW
+      must be n while this is enabled -- two writers on one strip would fight.
+      That also means ZMK's &rgb_ug behaviors do nothing; the effects, hue and
+      saturation controls on the SYS layer are inert.
+
+if KLOR_RGB_REACTIVE
+
+config KLOR_RGB_REACTIVE_IDLE_BRT
+    int "Idle brightness, percent"
+    range 0 100
+    default 20
+
+config KLOR_RGB_REACTIVE_PRESS_BRT
+    int "Pressed-key brightness, percent"
+    range 0 100
+    default 60
+    help
+      Keep this modest. White drives all three dies on every LED, and on this
+      board the supply sags above roughly 70% - green and blue starve before
+      red, so white drifts pink. Only a few LEDs are lit at once here, so the
+      load is far lower than a full-strip white, but the ceiling is real.
+
+endif # KLOR_RGB_REACTIVE
