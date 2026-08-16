@@ -40,22 +40,70 @@ longer built. Fixed here:
 
 ## KEYMAP
 
-Five layers, defined in [`config/klor.keymap`](config/klor.keymap):
+Four layers, defined in [`config/klor.keymap`](config/klor.keymap). They **chain** rather
+than combine — each one is reached from the one before it, adding a key:
 
 | Layer | How to reach it | What's on it |
 | :--- | :--- | :--- |
-| `BASE` | default | QWERTY, both shifts on the outer columns |
-| `NAV` | hold left thumb layer key | Arrows on H J K L, Home/End/PgUp/PgDn, undo/cut/copy/paste, mirrored mods on the left hand |
-| `NUM` | hold right thumb layer key | Digits 1-0 across the home row, shifted symbols above, brackets and operators below |
-| `FN` | hold **both** layer keys | F1-F12, media and brightness |
-| `SYS` | from `FN`, hold the outer-left bottom key | Bluetooth profiles, USB/BLE output, RGB, bootloader, reset |
+| `BASE` | default | QWERTY. Esc on the left outer column, Enter on the right, brackets filling the right hand's bottom row |
+| `XTRA` | hold **38** (left inner thumb) | Calculator on the right hand — numpad plus `+ - * / =`. Symbols on the left in QWERTY number-row order |
+| `FN` | from `XTRA`, add **41** | F1–F12. F2–F11 straight across the top row, F1 and F12 on the outer columns below |
+| `SYS` | from `FN`, add **22** | Bluetooth profiles, USB/BLE output, RGB, bootloader, reset |
 
-Escape is the **Q + W combo** — there is no room for a dedicated key.
+```
+BASE
+  ┌────┬────┬────┬────┬────┐              ┌────┬────┬────┬────┬────┐
+  │ Q  │ W  │ E  │ R  │ T  │              │ Y  │ U  │ I  │ O  │ P  │
+┌─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┐        ┌──┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴─┐
+│ESC │ A  │ S  │ D  │ F  │ G  │        │ H  │ J  │ K  │ L  │ ]  │BSPC│
+├────┼────┼────┼────┼────┼────┤ ╭────╮╭────╮ ├────┼────┼────┼────┼────┤
+│SHFT│ Z  │ X  │ C  │ V  │ B  │ │MUTE││PLAY│ │ N  │ M  │ [  │ ;  │ \  │ENTR│
+└────┴────┴────┼────┼────┼────┤ ╰────╯╰────╯ ├────┼────┼────┼────┴────┘
+               │CTRL│ALT │XTRA│ │SPACE│ │ ,  │ .  │ /  │ '  │
+               └────┴────┴────┘ └─────┘ └────┴────┴────┴────┘
+
+XTRA                                          FN
+  `   ~   !   @   #      1   2   3   0   +     F2  F3  F4  F5  F6    F7  F8  F9 F10 F11
+      $   %   ^   &   _      4   5   6   -  *  F1                                    F12
+      (   )                  7   8   9   /  =  SYS
+```
+
+There is only **one Shift**, on position 22 — the right Shift was given up to make room for
+Enter. **Super** is not a key either: it is the `XTRA + Space` combo on positions 38 + 39.
+A ZMK combo holds its binding for as long as the trigger keys are held, so that behaves as
+a real modifier — hold both thumb keys and press L for Super+L.
+
+**Tab** is the `Q + W` combo (positions 0 + 1). Both combos use a 50 ms window.
+
+Shifted glyphs need no special behavior: ZMK sends HID usage codes and the *host* applies
+shift, so `&kp BSLH` already yields `|`, `&kp LBKT` yields `{`, and so on.
+
+### Encoders
+
+| Layer | Left (28) | Right (29) |
+| :--- | :--- | :--- |
+| `BASE` | Volume | Page up/down |
+| `XTRA` | Screen brightness | Page up/down |
+| `FN` | Volume | Track next/previous |
+| `SYS` | Volume | Page up/down |
+
+The push switches are ordinary keymap positions: 28 is Mute and 29 is Play/Pause on `BASE`.
+
+### A note on fall-through
+
+`FN` can only be reached *through* `XTRA`, so position 38 stays held and `XTRA` stays
+active underneath. Every `&trans` on `FN` therefore resolves to `XTRA`, not to `BASE` — in
+practice `FN`'s right hand gives you F-keys **and** a live numpad at the same time. Use
+`&none` instead of `&trans` if you ever want a key on `FN` to genuinely do nothing.
 
 The keymap file opens with a position map numbering all 44 positions (42 keys plus
 the two encoder push switches). Use those numbers when adding combos.
 
 ## FLASHING
+
+CI is the only way to build this — there is no local toolchain. Note the repo currently has
+only an `upstream` remote pointing at GEIGEIGEIST, so a personal `origin` has to be added
+before a push will build anything.
 
 - push to this repo, then open the **Actions** tab on GitHub
 - open the newest run and download the `firmware` artifact
@@ -70,6 +118,9 @@ the normal firmware back.
 
 ## NOT DONE YET
 
+- **None of this has been built or flashed yet.** The keymap is internally consistent —
+  44 bindings and 2 sensor-bindings per layer, every layer reachable — but it has never
+  been through CI or onto hardware.
 - **ZMK Studio** (live keymap editing over USB, no reflash) needs a `zmk,physical-layout`
   node describing the polydactyl key positions. The shield still uses the older
   `zmk,matrix_transform`, which ZMK continues to honour.

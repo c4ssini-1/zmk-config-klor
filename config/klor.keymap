@@ -10,11 +10,14 @@
 #include <dt-bindings/zmk/ext_power.h>
 #include <dt-bindings/zmk/rgb.h>
 
+/*
+ * Layer indices. These are positional: deleting a layer renumbers everything
+ * below it, so keep this block and the order of the nodes in "keymap" in sync.
+ */
 #define BASE 0
-#define NAV  1
-#define NUM  2
-#define FN   3
-#define SYS  4
+#define XTRA 1
+#define FN   2
+#define SYS  3
 
 /*
  * POSITION MAP -- the index of every key, in the order bindings are listed.
@@ -50,26 +53,38 @@
     };
 
     /*
-     * Holding both layer keys (38 and 41) at once gives you the FN layer, so
-     * function keys and media cost no extra thumb key.
+     * The tri-layer that used to produce FN is gone with NAV: a conditional
+     * layer needs two layers held at once, and there is only one momentary
+     * layer key left. FN is now reached by chaining instead -- hold 38 for
+     * XTRA, then hold 41 for FN, then 22 for SYS.
      */
-    conditional_layers {
-        compatible = "zmk,conditional-layers";
-
-        tri_layer {
-            if-layers = <NAV NUM>;
-            then-layer = <FN>;
-        };
-    };
 
     combos {
         compatible = "zmk,combos";
 
-        /* Q + W together = Escape, since there is no room for a dedicated one. */
-        combo_esc {
+        /* Q + W together = Tab. Escape has the dedicated key at position 10. */
+        combo_tab {
             timeout-ms = <50>;
             key-positions = <0 1>;
-            bindings = <&kp ESC>;
+            bindings = <&kp TAB>;
+        };
+
+        /*
+         * XTRA + Space (the two inner left thumb keys) = Super. A combo holds
+         * its binding for as long as the trigger keys stay held, so this is a
+         * real modifier and not just a tap: hold both, then press L to get
+         * Super+L.
+         *
+         * Restricted to BASE so it cannot fire out of XTRA/FN/SYS, where 38
+         * and 39 are transparent. Raise timeout-ms if the two keys are hard
+         * to hit together; lower it if entering XTRA and hitting Space
+         * quickly gives you Super when you wanted a space.
+         */
+        combo_super {
+            timeout-ms = <50>;
+            key-positions = <38 39>;
+            layers = <BASE>;
+            bindings = <&kp LGUI>;
         };
     };
 
@@ -82,70 +97,145 @@
  *   ┌────┬────┬────┬────┬────┐              ┌────┬────┬────┬────┬────┐
  *   │ Q  │ W  │ E  │ R  │ T  │              │ Y  │ U  │ I  │ O  │ P  │
  * ┌─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┐        ┌──┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴─┐
- * │TAB │ A  │ S  │ D  │ F  │ G  │        │ H  │ J  │ K  │ L  │ ;  │ '  │
- * ├────┼────┼────┼────┼────┼────┤ ╭────╮ ├────┼────┼────┼────┼────┼────┤
- * │SHFT│ Z  │ X  │ C  │ V  │ B  │ │MUTE│ │ N  │ M  │ ,  │ .  │ /  │SHFT│
- * └────┴────┴────┼────┼────┼────┤ ╰────╯ ├────┼────┼────┼────┴────┴────┘
- *                │CTRL│GUI │NAV │ │SPACE│ │BSPC│NUM │ENT │ALT │
+ * │ESC │ A  │ S  │ D  │ F  │ G  │        │ H  │ J  │ K  │ L  │ ]  │BSPC│
+ * ├────┼────┼────┼────┼────┼────┤ ╭────╮╭────╮ ├────┼────┼────┼────┼────┼────┤
+ * │SHFT│ Z  │ X  │ C  │ V  │ B  │ │MUTE││PLAY│ │ N  │ M  │ [  │ ;  │ \  │ENTR│
+ * └────┴────┴────┼────┼────┼────┤ ╰────╯╰────╯ ├────┼────┼────┼────┴────┴────┘
+ *                │CTRL│ALT │XTRA│ │SPACE│ │ ,  │ .  │ /  │ '  │
  *                └────┴────┴────┘ └─────┘ └────┴────┴────┴────┘
+ *
+ * The two round keys are the ENCODER PUSH SWITCHES (28 left, 29 right), not
+ * regular keys. 29 went back to play/pause when NAV was deleted.
+ *
+ * The shifted glyphs need no special behavior: the host applies shift to the
+ * HID usage code, so &kp BSLH already yields | under shift, and likewise
+ * [ -> {   ; -> :   ] -> }   , -> <   . -> >   / -> ?   ' -> "
+ *
+ * Layers chain rather than combine: hold 38 for XTRA, add 41 for FN, add 22
+ * for SYS. There is only one momentary layer key on BASE.
+ *
+ * There is deliberately only ONE Shift, at position 22 -- the right Shift was
+ * given up to put Enter on 35. Super is not a key either: it is the XTRA+Space
+ * combo (38 + 39), which holds Super for as long as both thumb keys are held,
+ * so Super+L and friends still work.
  * ------------------------------------------------------------------------ */
         base_layer {
             display-name = "QWERTY";
             bindings = <
               &kp Q      &kp W      &kp E      &kp R      &kp T                                &kp Y      &kp U      &kp I      &kp O      &kp P
-   &kp TAB    &kp A      &kp S      &kp D      &kp F      &kp G                                &kp H      &kp J      &kp K      &kp L      &kp SEMI   &kp SQT
-   &kp LSHFT  &kp Z      &kp X      &kp C      &kp V      &kp B      &kp C_MUTE   &kp C_PP     &kp N      &kp M      &kp COMMA  &kp DOT    &kp FSLH   &kp RSHFT
+   &kp ESC    &kp A      &kp S      &kp D      &kp F      &kp G                                &kp H      &kp J      &kp K      &kp L      &kp RBKT   &kp BSPC
+   &kp LSHFT  &kp Z      &kp X      &kp C      &kp V      &kp B      &kp C_MUTE   &kp C_PP     &kp N      &kp M      &kp LBKT   &kp SEMI   &kp BSLH   &kp RET
 /* MODIFIER ZONE -- rearrange these eight thumb keys however you like. */
-                                    &kp LCTRL  &kp LGUI   &mo NAV    &kp SPACE    &kp BSPC     &mo NUM    &kp RET    &kp RALT
+                                    &kp LCTRL  &kp LALT   &mo XTRA   &kp SPACE    &kp COMMA    &kp DOT    &kp FSLH   &kp SQT
             >;
             sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>, <&inc_dec_kp PG_UP PG_DN>;
         };
 
 /* ------------------------------------------------------------------------
- * NAV -- hold the left thumb layer key. Arrows sit under your right hand in
- * the vim positions (H J K L), and the left hand holds mirrored modifiers so
- * you can chord shift+arrow to select text without crossing hands.
+ * XTRA -- hold position 38 (left inner thumb). The scratch layer for whatever
+ * you reach for often.
+ *
+ *   ┌────┬────┬────┬────┬────┐              ┌────┬────┬────┬────┬────┐
+ *   │ `  │ ~  │ !  │ @  │ #  │              │ 1  │ 2  │ 3  │ 0  │ +  │
+ * ┌─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┐        ┌──┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴─┐
+ * │    │ $  │ %  │ ^  │ &  │ _  │        │ 4  │ 5  │ 6  │ -  │ *  │    │
+ * ├────┼────┼────┼────┼────┼────┤ ╭────╮╭────╮ ├────┼────┼────┼────┼────┼────┤
+ * │    │ (  │ )  │    │    │    │ │    ││    │ │ 7  │ 8  │ 9  │ /  │ =  │    │
+ * └────┴────┴────┼────┼────┼────┤ ╰────╯╰────╯ ├────┼────┼────┼────┴────┴────┘
+ *                │    │    │    │ │     │ │    │ FN │    │    │
+ *                └────┴────┴────┘ └─────┘ └────┴────┴────┴────┘
+ *
+ * Blank cells are &trans and fall through to BASE.
+ *
+ * The right hand is a calculator block: 1-9 as a numpad on the three inner
+ * columns reading top to bottom, 0 on the ring finger, and the operators
+ * + - * / = filling the ring and pinky columns beside them.
+ *
+ * / is deliberately duplicated here -- BASE already has it on 42 -- so that
+ * the whole calculator is reachable without leaving the layer.
+ *
+ * The left hand holds the symbols that the operator column did not take,
+ * packed from position 0 with no gaps:
+ *     ` ~ ! @ # $ % ^ & _ ( )
+ * That is 12 symbols in 15 slots, so 25, 26 and 27 are free at the end.
+ *
+ * This is QWERTY number-row order except at the tail: ( and ) were pulled
+ * together onto 23 and 24 so the pair rolls across two adjacent fingers,
+ * which pushed _ up into the slot they vacated at 15.
+ *
+ * ENCODERS: the left one is screen brightness here -- it moved off FN, where
+ * it needed three keys held to reach. The right one stays on page up/down.
+ *
+ * Anything BASE can already produce is left &trans rather than duplicated:
+ *     [ ] { }   BASE 32 and 20, plain and shifted
+ *     \ |       BASE 34, plain and shifted
+ *     :         Shift + BASE 33
+ *     "         Shift + BASE 43
+ *
+ * 22 is transparent now, so BASE's Shift falls through and can be held on
+ * this layer. The shifted symbols are still bound directly because one key
+ * beats a two-key chord, not because Shift is unavailable.
+ *
+ * Position 41 is the door to FN, which is the door to SYS. Keep those two
+ * bound or the bootloader and Bluetooth keys become unreachable.
  * ------------------------------------------------------------------------ */
-        nav_layer {
-            display-name = "NAV";
+        xtra_layer {
+            display-name = "XTRA";
             bindings = <
-              &trans     &trans     &trans     &trans     &trans                               &kp INS    &kp HOME   &kp UP     &kp END    &kp PG_UP
-   &kp ESC    &kp LGUI   &kp LALT   &kp LCTRL  &kp LSHFT  &trans                               &kp DEL    &kp LEFT   &kp DOWN   &kp RIGHT  &kp PG_DN  &trans
-   &trans     &kp LC(Z)  &kp LC(X)  &kp LC(C)  &kp LC(V)  &kp LC(Y)  &trans       &trans       &kp K_APP  &kp CAPS   &kp PSCRN  &trans     &trans     &trans
-                                    &trans     &trans     &trans     &trans       &trans       &trans     &trans     &trans
+              &kp GRAVE  &kp TILDE  &kp EXCL   &kp AT     &kp HASH                             &kp N1     &kp N2     &kp N3     &kp N0     &kp PLUS
+   &trans     &kp DLLR   &kp PRCNT  &kp CARET  &kp AMPS   &kp UNDER                            &kp N4     &kp N5     &kp N6     &kp MINUS  &kp ASTRK  &trans
+   &trans     &kp LPAR   &kp RPAR   &trans     &trans     &trans     &trans       &trans       &kp N7     &kp N8     &kp N9     &kp FSLH   &kp EQUAL  &trans
+                                    &trans     &trans     &trans     &trans       &trans       &mo FN     &trans     &trans
             >;
-            sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>, <&inc_dec_kp PG_UP PG_DN>;
+            sensor-bindings = <&inc_dec_kp C_BRI_UP C_BRI_DN>, <&inc_dec_kp PG_UP PG_DN>;
         };
 
 /* ------------------------------------------------------------------------
- * NUM -- hold the right thumb layer key. Digits run 1-0 straight across the
- * home row, shifted symbols sit above them in their QWERTY positions, and
- * brackets and operators fill the bottom row.
- * ------------------------------------------------------------------------ */
-        num_layer {
-            display-name = "NUM";
-            bindings = <
-              &kp EXCL   &kp AT     &kp HASH   &kp DLLR   &kp PRCNT                            &kp CARET  &kp AMPS   &kp ASTRK  &kp LPAR   &kp RPAR
-   &kp GRAVE  &kp N1     &kp N2     &kp N3     &kp N4     &kp N5                               &kp N6     &kp N7     &kp N8     &kp N9     &kp N0     &kp MINUS
-   &kp TILDE  &kp LBKT   &kp RBKT   &kp LBRC   &kp RBRC   &kp BSLH   &trans       &trans       &kp PIPE   &kp UNDER  &kp EQUAL  &kp PLUS   &kp COLON  &kp DQT
-                                    &trans     &trans     &trans     &trans       &trans       &trans     &trans     &trans
-            >;
-            sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>, <&inc_dec_kp PG_UP PG_DN>;
-        };
-
-/* ------------------------------------------------------------------------
- * FN -- hold both thumb layer keys. F-keys on the top two rows, media under
- * the right hand, and the door to the SYS layer at position 22.
+ * FN -- from XTRA, hold position 41. So: hold 38, then 41.
+ *
+ *   ┌────┬────┬────┬────┬────┐              ┌────┬────┬────┬────┬────┐
+ *   │ F2 │ F3 │ F4 │ F5 │ F6 │              │ F7 │ F8 │ F9 │F10 │F11 │
+ * ┌─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┐        ┌──┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴─┐
+ * │ F1 │    │    │    │    │    │        │    │    │    │    │    │F12 │
+ * ├────┼────┼────┼────┼────┼────┤ ╭────╮╭────╮ ├────┼────┼────┼────┼────┼────┤
+ * │SYS │    │    │    │    │    │ │    ││    │ │    │    │    │    │    │    │
+ * └────┴────┴────┼────┼────┼────┤ ╰────╯╰────╯ ├────┼────┼────┼────┴────┴────┘
+ *                │    │    │    │ │     │ │    │    │    │    │
+ *                └────┴────┴────┘ └─────┘ └────┴────┴────┴────┘
+ *
+ * F2-F11 run straight across the top row in order; F1 and F12 sit on the
+ * outer columns of the row below, bracketing that run. Position 11 held F12
+ * before and is transparent now.
+ *
+ * The right-hand media block is gone. Note that clearing it does NOT leave
+ * those keys dead: FN is only ever reached THROUGH XTRA, so XTRA stays held
+ * underneath and every &trans here falls through to it. In practice the
+ * right hand reads:
+ *
+ *     F7  F8  F9  F10 F11        (this layer)
+ *      4   5   6   -   *   F12   (4-* from XTRA, F12 from here)
+ *      7   8   9   /   =   RET   (7-= from XTRA, RET from BASE)
+ *
+ * So F-keys and the numpad are live at the same time. That is useful, but it
+ * is a fall-through, not something written on this layer -- edit XTRA if you
+ * want those digits to change.
+ *
+ * ENCODERS: brightness moved off the left encoder to XTRA, so the left one
+ * is volume here like everywhere else. The right one is track next/previous,
+ * which is now the only media transport left on this layer.
+ *
+ * Position 22 is the door to SYS, and the only one -- reaching SYS means
+ * holding 38, 41 and 22 together.
  * ------------------------------------------------------------------------ */
         fn_layer {
             display-name = "FN";
             bindings = <
-              &kp F1     &kp F2     &kp F3     &kp F4     &kp F5                               &kp F6     &kp F7     &kp F8     &kp F9     &kp F10
-   &kp F11    &kp F12    &trans     &trans     &trans     &trans                               &kp C_PREV &kp C_VOL_DN &kp C_VOL_UP &kp C_NEXT &kp C_PP &trans
-   &mo SYS    &trans     &trans     &trans     &trans     &trans     &trans       &trans       &kp C_MUTE &kp C_BRI_DN &kp C_BRI_UP &trans   &trans     &trans
+              &kp F2     &kp F3     &kp F4     &kp F5     &kp F6                               &kp F7     &kp F8     &kp F9     &kp F10    &kp F11
+   &kp F1     &trans     &trans     &trans     &trans     &trans                               &trans     &trans     &trans     &trans     &trans     &kp F12
+   &mo SYS    &trans     &trans     &trans     &trans     &trans     &trans       &trans       &trans     &trans     &trans     &trans     &trans     &trans
                                     &trans     &trans     &trans     &trans       &trans       &trans     &trans     &trans
             >;
-            sensor-bindings = <&inc_dec_kp C_BRI_UP C_BRI_DN>, <&inc_dec_kp C_NEXT C_PREV>;
+            sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>, <&inc_dec_kp C_NEXT C_PREV>;
         };
 
 /* ------------------------------------------------------------------------
