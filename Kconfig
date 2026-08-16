@@ -35,9 +35,20 @@ config KLOR_STATUS_SCREEN
     depends on !ZMK_SPLIT || ZMK_SPLIT_ROLE_CENTRAL
     select LV_USE_LABEL
     select LV_FONT_UNSCII_8
+    select LV_USE_CANVAS
+    select LV_USE_IMAGE
     help
       Draws a miniature map of the active layer on the OLED instead of ZMK's
-      status widgets. There is no room for both on 128x64 at 1bpp.
+      status widgets, with the key being pressed shown inverted. There is no
+      room for both a keymap and status icons on 128x64 at 1bpp.
+
+      The screen is drawn into an LV_COLOR_FORMAT_I1 canvas, because a label
+      cannot style one character differently from its neighbours and inverting a
+      single cell is the whole point. LV_USE_CANVAS is selected rather than
+      implied: lvgl only defaults it on when LV_CONF_MINIMAL is off, and it is
+      the widget the screen cannot work without. LV_USE_IMAGE goes with it --
+      lvgl merely "imply"s it from LV_USE_CANVAS, and an imply can be overridden
+      to n, which would fail to link rather than warn.
 
       Central only, and not by choice: the peripheral never runs the keymap, so
       zmk_keymap_highest_layer_active() has nothing to report there. ZMK applies

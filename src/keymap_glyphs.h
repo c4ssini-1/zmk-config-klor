@@ -40,3 +40,13 @@ static const char *const keymap_glyphs[4][4] = {
         " caxgmp,f/' ",
     },
 };
+
+#define KEYMAP_GLYPH_POSITIONS 44
+
+/* Key position -> cell in the grid above. */
+static const unsigned char keymap_pos_row[44] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3
+};
+static const unsigned char keymap_pos_col[44] = {
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 5, 6, 6, 7, 8, 9, 10, 11, 1, 2, 3, 4, 7, 8, 9, 10
+};

@@ -140,6 +140,30 @@ browns out above roughly 70% — green and blue starve before red, so white drif
 a few LEDs are bright at once here, so the load stays well under that, but the ceiling is
 real if you raise the numbers.
 
+## DISPLAY
+
+The **left** OLED shows a miniature map of the active layer instead of ZMK's battery and
+profile widgets — there is no room for both on 128×64 at 1 bpp. Only the left half's keys
+are drawn, spread across the whole panel with a dot lattice between them:
+
+```
+ . Q . W . E . R . T
+ e . A . S . D . F . G
+ s . Z . X . C . V . B
+ . c . a . x .   . m
+```
+
+**The key you press is shown inverted** — a white square with the glyph in black — and any
+number of keys can be highlighted at once. That needs per-pixel control, so the screen is
+drawn into a 1-bpp LVGL canvas rather than built from labels.
+
+The glyphs are generated from the keymap by
+[`scripts/gen_keymap_glyphs.py`](scripts/gen_keymap_glyphs.py). **Re-run it after any keymap
+change** or the display will confidently show the wrong keys.
+
+The **right** OLED cannot do this. It is a BLE peripheral, never runs the keymap, and so has
+no idea which layer is active; ZMK applies the same restriction to its own layer widget.
+
 ## FLASHING
 
 CI is the only way to build this — there is no local toolchain. `origin` is this fork;
@@ -166,4 +190,3 @@ the normal firmware back.
 - **ZMK Studio** (live keymap editing over USB, no reflash) needs a `zmk,physical-layout`
   node describing the polydactyl key positions. The shield still uses the older
   `zmk,matrix_transform`, which ZMK continues to honour.
-- Per-layer keymap display on the OLEDs.

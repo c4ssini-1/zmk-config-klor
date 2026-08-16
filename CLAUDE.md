@@ -178,21 +178,52 @@ on the **left half only** with a miniature map of the active layer. There is no 
 both on 128×64 at 1 bpp, and the peripheral cannot show a layer at all — ZMK encodes that
 itself: `ZMK_WIDGET_LAYER_STATUS depends on !ZMK_SPLIT || ZMK_SPLIT_ROLE_CENTRAL`.
 
+Only **this half's** keys are drawn — grid columns 0–5. The full 44-key grid fitted, but it
+read as a dense block and half of it was under the other hand. Pressed keys are shown
+**inverted**: a white square with the glyph repainted in black.
+
 Implementation notes worth keeping:
 
-- **One label, not 44 objects.** The whole board is a single multi-line string rendered in
-  `lv_font_unscii_8`, an 8×8 fixed-width bitmap font. Monospace is what makes the grid line
-  up; 12 columns × 8 px is 96 px inside a 128 px panel.
+- **It is a canvas, not labels.** A label has no per-character styling, so it cannot invert
+  one glyph. Drawing into an `LV_COLOR_FORMAT_I1` canvas makes every pixel ours, and any
+  number of keys can be lit at once. The font is still `lv_font_unscii_8`; monospace is what
+  makes the grid line up.
+- **Two I1 buffer traps.** An indexed draw buffer keeps its palette in the *first* bytes of
+  the buffer with pixels after it, but `lv_canvas_set_buffer` sizes the buffer as
+  `stride * h` only — so the array must be `palette + pixels` (8 + 1024 here) or LVGL writes
+  past the end. And the palette must be set explicitly with `lv_canvas_set_palette`;
+  blending picks an index by luminance threshold, so white lands on 1 and black on 0.
+- **Geometry is budgeted on advances, not glyphs.** `unscii_8`'s `line_height` is 9, not 8,
+  and LVGL advances by `letter_space` after *every* character, not just between them. Both
+  have already caused visible bugs (bottom rows pushed off the panel; a scrollbar from
+  overflow). A cell is 11 × 15, so the block is 121 × 60 inside 128 × 64.
+- **The held-key set is accumulated in the state fetch, not the draw callback.**
+  `ZMK_DISPLAY_WIDGET_LISTENER` keeps one state snapshot and submits a `k_work`; a second
+  event arriving before that work runs finds the submit already pending and only the newer
+  snapshot survives. A state of "which key just changed" would therefore drop events and
+  leave highlights stuck on. Carrying the whole held set as a bitmask makes a coalesced
+  update still correct.
+- **`LV_USE_CANVAS` is `select`ed, not relied on.** lvgl only defaults it on when
+  `LV_CONF_MINIMAL` is off. `LV_USE_IMAGE` is selected alongside it because lvgl merely
+  `imply`s that from canvas, and an `imply` can be overridden to `n` — which fails to link
+  rather than warn.
 - **The glyphs are generated, not hand-written.** `src/keymap_glyphs.h` comes from
   [scripts/gen_keymap_glyphs.py](scripts/gen_keymap_glyphs.py), which parses the keymap and
   the matrix transform. **Re-run it after any keymap change** or the display will
   confidently show the wrong keys. It resolves `&trans` down the layer chain, so what is
-  drawn is what the key actually does.
+  drawn is what the key actually does. It also emits `keymap_pos_row[]` / `keymap_pos_col[]`,
+  the inverse lookup the highlight needs to turn a key position from a
+  `zmk_position_state_changed` event into a grid cell — from the same transform, so the
+  picture and the highlight cannot disagree about where a key lives.
 - **Switching to a custom screen silently drops font and theme config.** ZMK sets
   `LV_FONT_MONTSERRAT_*`, the default font and `LV_USE_THEME_MONO` inside
   `if ZMK_DISPLAY_STATUS_SCREEN_BUILT_IN`. Choosing the custom screen loses all of it, so
   `klor_left.conf` asks for `LV_FONT_UNSCII_8`, `LV_FONT_DEFAULT_UNSCII_8` and
-  `LV_USE_THEME_MONO` explicitly.
+  `LV_USE_THEME_MONO` explicitly. The same applies to `LV_Z_MEM_POOL_SIZE`, which ZMK only
+  defaults to 4096 for the built-in screen — it is set to 8192 here because every
+  `lv_draw_*` call mallocs a task plus a copy of its descriptor and they all queue until
+  `lv_canvas_finish_layer` dispatches, so peak use scales with how many keys are held. The
+  1 KB canvas buffer is a static array and does *not* come from this pool.
 
 ## Per-key reactive underglow
 

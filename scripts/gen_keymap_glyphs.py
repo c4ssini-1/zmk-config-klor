@@ -117,6 +117,7 @@ def main():
     clean = strip_comments(KEYMAP.read_text())
     layers = layer_bindings(clean)
     pos = grid_positions(DTSI.read_text())
+    npos = len(pos)
 
     names = list(layers)
     if len(names) != len({n for n in names}):
@@ -126,7 +127,7 @@ def main():
     resolved = {}
     for idx, name in enumerate(names):
         row = []
-        for p in range(44):
+        for p in range(npos):
             b = layers[name][p]
             i = idx
             while b == "&trans" and i > 0:
@@ -160,7 +161,7 @@ def main():
 
     for name in names:
         grid = [[" "] * ncols for _ in range(nrows)]
-        for p in range(44):
+        for p in range(npos):
             r, c = pos[p]
             grid[r][c] = glyph_for(resolved[name][p])
         lines.append(f"    {{ /* {name.split('_')[0].upper()} */")
@@ -170,13 +171,31 @@ def main():
         lines.append("    },")
 
     lines += ["};", ""]
+
+    # The screen also needs the inverse lookup: given a key position from a
+    # zmk_position_state_changed event, which cell of the grid above does it
+    # light up? Emitted from the same `pos` map, so the picture and the
+    # highlight can never disagree about where a key lives.
+    lines += [
+        f"#define KEYMAP_GLYPH_POSITIONS {npos}",
+        "",
+        "/* Key position -> cell in the grid above. */",
+        f"static const unsigned char keymap_pos_row[{npos}] = {{",
+        "    " + ", ".join(str(pos[p][0]) for p in range(npos)),
+        "};",
+        f"static const unsigned char keymap_pos_col[{npos}] = {{",
+        "    " + ", ".join(str(pos[p][1]) for p in range(npos)),
+        "};",
+        "",
+    ]
+
     OUT.write_text("\n".join(lines))
 
     print(f"wrote {OUT.relative_to(ROOT)}  ({len(names)} layers, {nrows}x{ncols})")
     for name in names:
         print(f"  --- {name}")
         grid = [[" "] * ncols for _ in range(nrows)]
-        for p in range(44):
+        for p in range(npos):
             r, c = pos[p]
             grid[r][c] = glyph_for(resolved[name][p])
         for r in range(nrows):
