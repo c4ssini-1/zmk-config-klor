@@ -50,6 +50,38 @@
             flavor = "tap-preferred";
             bindings = <&kp>, <&kp>;
         };
+
+        /*
+         * Space on tap, Super on hold, for position 39. This is what makes
+         * Super+<letter> possible: the modifier lives on BASE, so the alphas
+         * are still underneath it. Reaching Super via XTRA cannot do that,
+         * because XTRA replaces the letters with symbols.
+         *
+         * Do NOT use the built-in &mt here. Its default flavor is
+         * "hold-preferred", which resolves to the HOLD as soon as another key
+         * is pressed inside the tapping term -- on the space bar that turns
+         * "the quick" into Super+q. The three settings below are what keep it
+         * usable on the most-pressed key on the board:
+         *
+         *   tap-preferred        hold only wins if actually held past the term,
+         *                        no matter what else is pressed meanwhile
+         *   require-prior-idle   typing within the last 150 ms forces a tap, so
+         *                        it cannot misfire mid-word
+         *   quick-tap            a re-press within 175 ms is always a tap, so
+         *                        repeated spaces still work
+         *
+         * If Super feels slow to engage, lower tapping-term-ms. If it fires
+         * while you type, raise require-prior-idle-ms.
+         */
+        spc: space_super {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            tapping-term-ms = <200>;
+            quick-tap-ms = <175>;
+            require-prior-idle-ms = <150>;
+            flavor = "tap-preferred";
+            bindings = <&kp>, <&kp>;
+        };
     };
 
     /*
@@ -69,23 +101,6 @@
             bindings = <&kp TAB>;
         };
 
-        /*
-         * XTRA + Space (the two inner left thumb keys) = Super. A combo holds
-         * its binding for as long as the trigger keys stay held, so this is a
-         * real modifier and not just a tap: hold both, then press L to get
-         * Super+L.
-         *
-         * Restricted to BASE so it cannot fire out of XTRA/FN/SYS, where 38
-         * and 39 are transparent. Raise timeout-ms if the two keys are hard
-         * to hit together; lower it if entering XTRA and hitting Space
-         * quickly gives you Super when you wanted a space.
-         */
-        combo_super {
-            timeout-ms = <50>;
-            key-positions = <38 39>;
-            layers = <BASE>;
-            bindings = <&kp LGUI>;
-        };
     };
 
     keymap {
@@ -115,9 +130,15 @@
  * for SYS. There is only one momentary layer key on BASE.
  *
  * There is deliberately only ONE Shift, at position 22 -- the right Shift was
- * given up to put Enter on 35. Super is not a key either: it is the XTRA+Space
- * combo (38 + 39), which holds Super for as long as both thumb keys are held,
- * so Super+L and friends still work.
+ * given up to put Enter on 35.
+ *
+ * SUPER is reachable two ways, and the difference matters:
+ *
+ *   hold 39 alone   -> Super on BASE, so the alphas are still underneath.
+ *                      This is the one for Super+T and friends. Tapping 39
+ *                      still sends Space; see the spc hold-tap above.
+ *   hold 38 then 39 -> Super on XTRA. The numpad is underneath instead, so
+ *                      Super+1..0 works but Super+<letter> cannot.
  * ------------------------------------------------------------------------ */
         base_layer {
             display-name = "QWERTY";
@@ -126,7 +147,7 @@
    &kp ESC    &kp A      &kp S      &kp D      &kp F      &kp G                                &kp H      &kp J      &kp K      &kp L      &kp RBKT   &kp BSPC
    &kp LSHFT  &kp Z      &kp X      &kp C      &kp V      &kp B      &kp C_MUTE   &kp C_PP     &kp N      &kp M      &kp LBKT   &kp SEMI   &kp BSLH   &kp RET
 /* MODIFIER ZONE -- rearrange these eight thumb keys however you like. */
-                                    &kp LCTRL  &kp LALT   &mo XTRA   &kp SPACE    &kp COMMA    &kp DOT    &kp FSLH   &kp SQT
+                                    &kp LCTRL  &kp LALT   &mo XTRA   &spc LGUI SPACE  &kp COMMA  &kp DOT    &kp FSLH   &kp SQT
             >;
             sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>, <&inc_dec_kp PG_UP PG_DN>;
         };
@@ -142,10 +163,20 @@
  * ├────┼────┼────┼────┼────┼────┤ ╭────╮╭────╮ ├────┼────┼────┼────┼────┼────┤
  * │    │ (  │ )  │    │    │    │ │    ││    │ │ 7  │ 8  │ 9  │ /  │ =  │    │
  * └────┴────┴────┼────┼────┼────┤ ╰────╯╰────╯ ├────┼────┼────┼────┴────┴────┘
- *                │    │    │    │ │     │ │    │ FN │    │    │
+ *                │    │    │    │ │SUPER│ │    │ FN │    │    │
  *                └────┴────┴────┘ └─────┘ └────┴────┴────┴────┘
  *
  * Blank cells are &trans and fall through to BASE.
+ *
+ * SUPER on 39 replaced the old XTRA+Space combo. A combo needs both keys
+ * inside 50 ms every time, which is awkward for something you hold through a
+ * chord; a plain &kp LGUI here has no timing constraint.
+ *
+ * Note what it can and cannot chord with. Holding 38 to reach Super means the
+ * other key comes from XTRA too, so Super+1 works -- the numpad sends a real
+ * digit -- but Super+T does not, because XTRA has no T; that position sends #.
+ * If Super+letter is needed, Super has to live on BASE instead, most cheaply
+ * as a hold-tap such as &mt LGUI SPACE on position 39.
  *
  * The right hand is a calculator block: 1-9 as a numpad on the three inner
  * columns reading top to bottom, 0 on the ring finger, and the operators
@@ -185,7 +216,7 @@
               &kp GRAVE  &kp TILDE  &kp EXCL   &kp AT     &kp HASH                             &kp N1     &kp N2     &kp N3     &kp N0     &kp PLUS
    &trans     &kp DLLR   &kp PRCNT  &kp CARET  &kp AMPS   &kp UNDER                            &kp N4     &kp N5     &kp N6     &kp MINUS  &kp ASTRK  &trans
    &trans     &kp LPAR   &kp RPAR   &trans     &trans     &trans     &trans       &trans       &kp N7     &kp N8     &kp N9     &kp FSLH   &kp EQUAL  &trans
-                                    &trans     &trans     &trans     &trans       &trans       &mo FN     &trans     &trans
+                                    &trans     &trans     &trans     &kp LGUI     &trans       &mo FN     &trans     &trans
             >;
             sensor-bindings = <&inc_dec_kp C_BRI_UP C_BRI_DN>, <&inc_dec_kp PG_UP PG_DN>;
         };

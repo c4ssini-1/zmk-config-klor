@@ -30,14 +30,19 @@ longer built. Fixed here:
 | `CONFIG_WS2812_STRIP` removed | Zephyr 4.1 split it into per-transport symbols. The old name is undefined, and assigning an undefined symbol aborts the build. `WS2812_STRIP_SPI` turns itself on from the devicetree |
 | EC11 `resolution` → `steps` | `resolution` is deprecated. Different units — pulses per detent vs per rotation — so `<4>` becomes `<80>`. Behaviour is unchanged |
 | Shield moved to `boards/` + `zephyr/module.yml` | `config/boards` is deprecated; the repo is now a Zephyr module, matching ZMK's `unified-zmk-config-template` |
+| LED strip moved from `&spi1` to `&spi3` | **Silent failure.** Builds fine, then every transfer times out with `-ETIMEDOUT`. On the nRF52840, SPIM0/1/2 share a hardware instance with TWIM/TWIS/SPIS; SPIM3 is standalone. All 27 nice!nano shields in the ZMK tree use `spi3` |
+| `CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER` forced to `n` | It gates the external power rail that the **OLEDs** share with the LED strip. ZMK cuts that rail when underglow goes idle and never restores it, so both screens die and stay dead |
+| ZMK's underglow replaced with a custom module | Per-key reactive lighting, which mainline ZMK cannot do — see below |
 
 ## WHAT THE KLOR HARDWARE CAN AND CANNOT DO UNDER ZMK
 
 - **Speaker / buzzer: not supported.** ZMK has no speaker driver. QMK only.
 - **Haptic feedback (DRV2605): not supported.** ZMK has no haptic driver. QMK only.
-- **RGB is whole-strip only.** The KLOR wires its SK6812 minis as an addressable
-  strip, but mainline ZMK drives it as underglow effects across the whole strip.
-  There is no per-key or per-layer control despite the "RGB matrix" naming.
+- **Per-key RGB works here, via custom firmware.** The 21 SK6812 minis per half sit
+  one per key, so per-key lighting is physically possible — but *mainline ZMK cannot
+  do it*: four whole-strip effects, no per-LED API, and no key-event hook. This repo
+  ships [`src/klor_rgb_reactive.c`](src/klor_rgb_reactive.c), which takes over the
+  strip and does it properly. See RGB below.
 - **The right OLED is limited.** It is a BLE peripheral and does not receive layer
   state, so it cannot show the active layer without custom firmware work.
 
@@ -51,7 +56,7 @@ than combine — each one is reached from the one before it, adding a key:
 | `BASE` | default | QWERTY. Esc on the left outer column, Enter on the right, brackets filling the right hand's bottom row |
 | `XTRA` | hold **38** (left inner thumb) | Calculator on the right hand — numpad plus `+ - * / =`. Symbols on the left in QWERTY number-row order |
 | `FN` | from `XTRA`, add **41** | F1–F12. F2–F11 straight across the top row, F1 and F12 on the outer columns below |
-| `SYS` | from `FN`, add **22** | Bluetooth profiles, USB/BLE output, RGB, bootloader, reset |
+| `SYS` | from `FN`, add **22** | Bluetooth profiles, USB/BLE output, bootloader, reset. *The RGB keys here are inert* — see LIGHTING |
 
 ```
 BASE
@@ -59,9 +64,9 @@ BASE
   │ Q  │ W  │ E  │ R  │ T  │              │ Y  │ U  │ I  │ O  │ P  │
 ┌─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┐        ┌──┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴─┐
 │ESC │ A  │ S  │ D  │ F  │ G  │        │ H  │ J  │ K  │ L  │ ]  │BSPC│
-├────┼────┼────┼────┼────┼────┤ ╭────╮╭────╮ ├────┼────┼────┼────┼────┤
+├────┼────┼────┼────┼────┼────┤ ╭────╮╭────╮ ├────┼────┼────┼────┼────┼────┤
 │SHFT│ Z  │ X  │ C  │ V  │ B  │ │MUTE││PLAY│ │ N  │ M  │ [  │ ;  │ \  │ENTR│
-└────┴────┴────┼────┼────┼────┤ ╰────╯╰────╯ ├────┼────┼────┼────┴────┘
+└────┴────┴────┼────┼────┼────┤ ╰────╯╰────╯ ├────┼────┼────┼────┴────┴────┘
                │CTRL│ALT │XTRA│ │SPACE│ │ ,  │ .  │ /  │ '  │
                └────┴────┴────┘ └─────┘ └────┴────┴────┴────┘
 
@@ -72,11 +77,21 @@ XTRA                                          FN
 ```
 
 There is only **one Shift**, on position 22 — the right Shift was given up to make room for
-Enter. **Super** is not a key either: it is the `XTRA + Space` combo on positions 38 + 39.
-A ZMK combo holds its binding for as long as the trigger keys are held, so that behaves as
-a real modifier — hold both thumb keys and press L for Super+L.
+Enter.
 
-**Tab** is the `Q + W` combo (positions 0 + 1). Both combos use a 50 ms window.
+**Super has two routes**, and the difference matters for window-manager bindings:
+
+| Gesture | Layer underneath | Good for |
+| :--- | :--- | :--- |
+| **hold 39** | BASE — the alphas | `Super+T`, `Super+Q`… |
+| **hold 38, then 39** | XTRA — the numpad | `Super+1` … `Super+0` |
+
+Position 39 is a hold-tap: **tap for Space, hold for Super**. It is not the built-in `&mt`,
+whose default `hold-preferred` flavour would turn "the quick" into `Super+q`. The `spc`
+behaviour uses `tap-preferred` plus `require-prior-idle-ms`, so a hold only registers when
+you have not just been typing.
+
+**Tab** is the `Q + W` combo (positions 0 + 1), 50 ms window — the only combo left.
 
 Shifted glyphs need no special behavior: ZMK sends HID usage codes and the *host* applies
 shift, so `&kp BSLH` already yields `|`, `&kp LBKT` yields `{`, and so on.
@@ -102,11 +117,33 @@ practice `FN`'s right hand gives you F-keys **and** a live numpad at the same ti
 The keymap file opens with a position map numbering all 44 positions (42 keys plus
 the two encoder push switches). Use those numbers when adding combos.
 
+## LIGHTING
+
+Per-key reactive underglow, from [`src/klor_rgb_reactive.c`](src/klor_rgb_reactive.c):
+**white at 10%, and the LED under a pressed key rises to 60% until you let go.**
+
+Mainline ZMK cannot do this — it has four whole-strip effects, no per-LED API, and the
+underglow subsystem never sees key events. So the module takes the strip over completely,
+which has three consequences worth knowing:
+
+- `CONFIG_ZMK_RGB_UNDERGLOW` is **off**. Two writers on one strip would fight.
+- The `&rgb_ug` keys on `SYS` **do nothing**. Effects, hue and saturation are not
+  implemented. Add them to the module rather than switching ZMK's underglow back on.
+- The encoder pushes have no LED, so nothing lights when you click them.
+
+**Each half is independent.** ZMK raises key events locally on both boards, so the right
+half lights its own keys without anything crossing the Bluetooth link — no latency, and no
+dependence on the halves being connected.
+
+Brightness is deliberately capped. White drives all three dies in every LED, and this board
+browns out above roughly 70% — green and blue starve before red, so white drifts pink. Only
+a few LEDs are bright at once here, so the load stays well under that, but the ceiling is
+real if you raise the numbers.
+
 ## FLASHING
 
-CI is the only way to build this — there is no local toolchain. Note the repo currently has
-only an `upstream` remote pointing at GEIGEIGEIST, so a personal `origin` has to be added
-before a push will build anything.
+CI is the only way to build this — there is no local toolchain. `origin` is this fork;
+`upstream` still points at GEIGEIGEIST for pulling changes down.
 
 - push to this repo, then open the **Actions** tab on GitHub
 - open the newest run and download the `firmware` artifact
@@ -121,9 +158,11 @@ the normal firmware back.
 
 ## NOT DONE YET
 
-- **None of this has been built or flashed yet.** The keymap is internally consistent —
-  44 bindings and 2 sensor-bindings per layer, every layer reachable — but it has never
-  been through CI or onto hardware.
+- **Repair the left controller.** Its **P0.09** pin is broken — that is matrix column 5,
+  so `T`, `G`, `B` and the left encoder push are dead, along with the four LEDs under
+  them. While the iron is out, check **VCC (pin 21)** and the **grounds (pins 3, 4, 23)**:
+  the left half browns out on white where the right half does not, which points at a
+  high-resistance power joint.
 - **ZMK Studio** (live keymap editing over USB, no reflash) needs a `zmk,physical-layout`
   node describing the polydactyl key positions. The shield still uses the older
   `zmk,matrix_transform`, which ZMK continues to honour.
