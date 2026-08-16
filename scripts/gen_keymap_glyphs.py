@@ -154,23 +154,7 @@ def main():
         f"#define KEYMAP_GLYPH_COLS {ncols}",
         f"#define KEYMAP_GLYPH_LAYERS {len(names)}",
         "",
-        "/*",
-        " * Which grid cells hold a key at all. Needed because a cell can be blank",
-        " * yet still be a key -- Space is drawn as nothing -- and the renderer must",
-        " * not mistake that for a hole in the board.",
-        " */",
-        f"static const char *const keymap_present[{nrows}] = {{",
-    ]
-    present = [[" "] * ncols for _ in range(nrows)]
-    for p_ in range(44):
-        r, c = pos[p_]
-        present[r][c] = "x"
-    for r in range(nrows):
-        lines.append(f'    "{"".join(present[r])}",')
-    lines += [
-        "};",
-        "",
-        "/* [layer][row] -> one string of KEYMAP_GLYPH_COLS chars. */",
+        "/* [layer][row] -> one string of KEYMAP_GLYPH_COLS chars, ' ' where no key. */",
         f"static const char *const keymap_glyphs[{len(names)}][{nrows}] = {{",
     ]
 

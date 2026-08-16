@@ -99,18 +99,13 @@ static void render_layer(uint8_t layer) {
     for (int R = 0; R < OUT_ROWS; R++) {
         const char *row = keymap_glyphs[layer][R];
         for (int C = 0; C < OUT_COLS; C++) {
-            if (C % 2 == 0) {
-                *w++ = row[C / 2];
-            } else {
-                /* A dot only where it genuinely sits between two keys. Rows 0
-                 * and 3 have no column 0 or 11, so without this an orphan dot
-                 * floats at the edge with nothing beside it.
-                 *
-                 * Test presence, not the glyph: Space is a real key drawn as
-                 * blank, and its neighbouring dots must stay. */
-                const char *pres = keymap_present[R];
-                *w++ = (pres[(C - 1) / 2] != ' ' && pres[(C + 1) / 2] != ' ') ? '.' : ' ';
-            }
+            /* Keys on even columns, a lattice dot on every odd one -- including
+             * where the neighbouring cell has no key. Rows 0 and 3 have no
+             * column 0, and suppressing the dot there left those rows starting
+             * flush while the others started with a dot, which broke the grid.
+             * A continuous dot column reads as a grid; a ragged one does not.
+             */
+            *w++ = (C % 2 == 0) ? row[C / 2] : '.';
         }
         if (R < OUT_ROWS - 1) {
             *w++ = '\n';
