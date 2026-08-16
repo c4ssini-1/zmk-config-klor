@@ -203,6 +203,13 @@ Implementation notes worth keeping:
   snapshot survives. A state of "which key just changed" would therefore drop events and
   leave highlights stuck on. Carrying the whole held set as a bitmask makes a coalesced
   update still correct.
+- **The panel runs inverted, and the canvas must absorb it.** `klor_common.dtsi` declares
+  the SSD1306 with `inversion-on`, so a pixel LVGL considers white lands on the glass dark.
+  `klor_status_screen.c` therefore draws through `ON_GLASS_WHITE`/`ON_GLASS_BLACK`, which
+  wrap the *opposite* LVGL colour. Do not "fix" this by dropping `inversion-on` — that node
+  is shared with the right half, whose built-in screen is already correct against it. And
+  `ZMK_DISPLAY_INVERT` is not the lever: it only passes a dark-background flag to
+  `lv_theme_mono_init`, which styles widgets, and a canvas never consults the theme.
 - **The screen must not render on the system work queue.** ZMK defaults to
   `ZMK_DISPLAY_WORK_QUEUE_SYSTEM`, which runs UI updates on the same queue that processes
   key events and sends HID reports. Harmless when the screen only redrew on a layer change;

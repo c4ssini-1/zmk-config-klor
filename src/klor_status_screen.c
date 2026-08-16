@@ -131,6 +131,25 @@ LOG_MODULE_REGISTER(klor_status, LOG_LEVEL_INF);
 #define HL_PAD_Y ((HL_SIDE - GLYPH_H) / 2)
 
 /*
+ * THE PANEL RUNS INVERTED, SO THESE TWO NAMES ARE THE OPPOSITE OF THE LVGL
+ * COLOUR THEY WRAP.
+ *
+ * klor_common.dtsi declares the SSD1306 with "inversion-on", so a pixel LVGL
+ * considers white arrives on the glass dark, and vice versa. That node is
+ * shared with the right half, whose built-in status screen is already correct
+ * against it, so the inversion is absorbed here rather than changed there.
+ *
+ * CONFIG_ZMK_DISPLAY_INVERT is not the lever either. It only passes a
+ * dark-background flag to lv_theme_mono_init, which styles widgets; a canvas
+ * paints its own pixels and never consults the theme.
+ *
+ * Naming these for the result on the glass keeps the drawing code below
+ * readable -- it says "black background, white text" and that is what you see.
+ */
+#define ON_GLASS_WHITE lv_color_black()
+#define ON_GLASS_BLACK lv_color_white()
+
+/*
  * Canvas backing store. Palette first, then pixels -- see the header comment.
  * 4-byte aligned because the palette entries are lv_color32_t.
  */
@@ -201,7 +220,7 @@ static void render(void) {
      * for indexed formats. */
     lv_draw_rect_dsc_t bg;
     lv_draw_rect_dsc_init(&bg);
-    bg.bg_color = lv_color_black();
+    bg.bg_color = ON_GLASS_BLACK;
     bg.bg_opa = LV_OPA_COVER;
     lv_area_t full = {0, 0, CANVAS_W - 1, CANVAS_H - 1};
     lv_draw_rect(&l, &bg, &full);
@@ -211,7 +230,7 @@ static void render(void) {
     lv_draw_label_dsc_init(&txt);
     txt.text = keymap_text;
     txt.font = &lv_font_unscii_8;
-    txt.color = lv_color_white();
+    txt.color = ON_GLASS_WHITE;
     txt.letter_space = LETTER_SPACE;
     txt.line_space = LINE_SPACE;
     txt.align = LV_TEXT_ALIGN_LEFT;
@@ -242,7 +261,7 @@ static void render(void) {
 
         lv_draw_rect_dsc_t sq;
         lv_draw_rect_dsc_init(&sq);
-        sq.bg_color = lv_color_white();
+        sq.bg_color = ON_GLASS_WHITE;
         sq.bg_opa = LV_OPA_COVER;
         lv_area_t sq_area = {
             gx - HL_PAD_X,
@@ -259,7 +278,7 @@ static void render(void) {
         lv_draw_label_dsc_init(&glyph);
         glyph.text = hl_text[p];
         glyph.font = &lv_font_unscii_8;
-        glyph.color = lv_color_black();
+        glyph.color = ON_GLASS_BLACK;
         glyph.align = LV_TEXT_ALIGN_LEFT;
         lv_area_t glyph_area = {gx, gy, gx + GLYPH_W - 1, gy + GLYPH_H - 1};
         lv_draw_label(&l, &glyph, &glyph_area);
