@@ -1,0 +1,11 @@
+# TEMPORARY -- delete along with src/klor_led_map.c once the LED map is known.
+config KLOR_LED_MAP_HARNESS
+    bool "KLOR LED mapping harness"
+    depends on LED_STRIP
+    help
+      Walks a single lit LED along the underglow strip so the physical key over
+      each chain index can be identified. Needed because per-key reactive
+      lighting requires a key-position to LED-index table.
+
+      Takes exclusive ownership of the strip, so ZMK_RGB_UNDERGLOW must be n
+      while this is enabled.

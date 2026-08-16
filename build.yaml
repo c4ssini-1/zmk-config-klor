@@ -9,10 +9,8 @@
 # artifact-name keeps the .uf2 filenames readable. Without it the board target
 # is mangled into the name and you get "klor_left-nice_nano__zmk-zmk.uf2".
 include:
-  # TEMPORARY: zmk-usb-logging makes this half enumerate a USB CDC ACM port so
-  # driver init and behavior activity can be read over serial. Left half only
-  # -- the right is a peripheral, where ZMK_USB cannot be enabled. Remove the
-  # snippet line once the LED strip problem is understood.
+  # TEMPORARY: serial logging so the harness can report which LED index it is
+  # showing. Left half only -- the right is a peripheral, no ZMK_USB there.
   - board: nice_nano//zmk
     shield: klor_left
     snippet: zmk-usb-logging

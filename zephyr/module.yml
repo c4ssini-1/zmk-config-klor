@@ -1,9 +1,14 @@
-# Marks this repository as a Zephyr module so the vendored klor shield is found
-# via board_root, instead of through the deprecated config/boards folder.
+# Marks this repository as a Zephyr module.
 #
-# board_root points at the PARENT of a "boards" directory, so "." means the repo
-# root, which contains boards/shields/klor. Layout matches ZMK's official
-# unified-zmk-config-template.
+# board_root points at the PARENT of a "boards" directory, so "." means the
+# repo root, which contains boards/shields/klor. That is what makes ZMK find
+# the vendored shield without the deprecated config/boards folder.
+#
+# cmake/kconfig additionally let this module contribute C code. Currently that
+# is only the temporary LED mapping harness; if src/ is ever emptied, these two
+# lines can go with it.
 build:
+  cmake: .
+  kconfig: Kconfig
   settings:
     board_root: .
