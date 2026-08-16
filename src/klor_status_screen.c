@@ -82,8 +82,20 @@ ZMK_SUBSCRIPTION(klor_layer_widget, zmk_layer_state_changed);
 
 lv_obj_t *zmk_display_status_screen(void) {
     lv_obj_t *screen = lv_obj_create(NULL);
+    if (!screen) {
+        /* LVGL is out of heap. Returning NULL leaves the display blank, which is
+         * survivable; carrying on would dereference NULL and fault the central,
+         * taking the split link down with it. */
+        LOG_ERR("no LVGL memory for the status screen - check LV_Z_MEM_POOL_SIZE");
+        return NULL;
+    }
 
     keymap_label = lv_label_create(screen);
+    if (!keymap_label) {
+        LOG_ERR("no LVGL memory for the keymap label");
+        return screen;
+    }
+
     lv_obj_set_style_text_font(keymap_label, &lv_font_unscii_8, LV_PART_MAIN);
 
     /* 4 rows of 8 px is only 32 of the 64 available, so spread them out --
