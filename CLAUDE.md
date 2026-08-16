@@ -195,7 +195,9 @@ link — `zmk_position_state_changed` is raised locally by each board's own matr
   `lv_canvas_set_px` *after* `lv_canvas_finish_layer`; doing it before would let the queued
   draw tasks paint over them. For indexed formats that call takes the palette index straight
   from `color.blue` rather than luminance, which happens to give the same black/white
-  polarity as the draw path.
+  polarity as the draw path. The cell is drawn **permanently inverted** — `render()` lays a
+  white square there as part of the layer and the mark goes on in black — so it reads as a
+  status badge rather than as a key that is stuck down.
 - **The layer is central-only, and that is a link-time fact, not a policy.** ZMK compiles
   neither `src/keymap.c` nor `src/events/layer_state_changed.c` into a non-central build
   (see the `if ((NOT CONFIG_ZMK_SPLIT) OR CONFIG_ZMK_SPLIT_ROLE_CENTRAL)` block in

@@ -311,7 +311,9 @@ static void draw_link_mark(void) {
     for (int y = 0; y < MARK_H; y++) {
         for (int x = 0; x < MARK_W; x++) {
             if (rows[y] & (1 << (MARK_W - 1 - x))) {
-                lv_canvas_set_px(keymap_canvas, x0 + x, y0 + y, ON_GLASS_WHITE, LV_OPA_COVER);
+                /* Black, because it sits on the permanent white square that
+                 * render() lays down for this cell. */
+                lv_canvas_set_px(keymap_canvas, x0 + x, y0 + y, ON_GLASS_BLACK, LV_OPA_COVER);
             }
         }
     }
@@ -352,6 +354,31 @@ static void render(void) {
     txt.align = LV_TEXT_ALIGN_LEFT;
     lv_area_t text_area = {ORIGIN_X, ORIGIN_Y, ORIGIN_X + TEXT_W - 1, ORIGIN_Y + TEXT_H - 1};
     lv_draw_label(&l, &txt, &text_area);
+
+#if KLOR_SHOW_LINK_STATUS
+    /* The link mark is permanently inverted, the way a held key looks: the
+     * white square goes down here as part of the layer, and draw_link_mark()
+     * paints the tick or cross onto it in black once the layer is dispatched.
+     * Nothing else claims this cell -- the matrix has no key at row 3,
+     * column 11 -- so it never fights with a keypress highlight. */
+    {
+        int lx = ORIGIN_X + (2 * LINK_CELL_COL) * CELL_W;
+        int ly = ORIGIN_Y + LINK_CELL_ROW * CELL_H;
+
+        lv_draw_rect_dsc_t link_sq;
+        lv_draw_rect_dsc_init(&link_sq);
+        link_sq.bg_color = ON_GLASS_WHITE;
+        link_sq.bg_opa = LV_OPA_COVER;
+
+        lv_area_t link_area = {
+            lx - HL_PAD_X,
+            ly - HL_PAD_Y,
+            lx - HL_PAD_X + HL_SIDE - 1,
+            ly - HL_PAD_Y + HL_SIDE - 1,
+        };
+        lv_draw_rect(&l, &link_sq, &link_area);
+    }
+#endif
 
     /* Then invert every held key on this half. Draw tasks run in the order they
      * are added, so the white square lands on top of the white glyph drawn

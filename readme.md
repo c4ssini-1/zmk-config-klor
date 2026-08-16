@@ -163,7 +163,9 @@ change** or the display will confidently show the wrong keys.
 
 The **right** OLED also shows the state of the split link in the last cell of its bottom
 row, just after the apostrophe: a **tick** when it has found the left half, a **cross** when
-it has not. Handy for telling "the halves have not paired" apart from "a key is dead".
+it has not. It is drawn permanently inverted — black mark on a white square — so it reads as
+a status badge rather than as a key you are holding down. Handy for telling "the halves have
+not paired" apart from "a key is dead".
 
 **The right OLED does not follow the layer.** It is a BLE peripheral and never runs the
 keymap — ZMK does not even compile the keymap or the layer event into a peripheral build, so
