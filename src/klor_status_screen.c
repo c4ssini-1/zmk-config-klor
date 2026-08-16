@@ -51,17 +51,22 @@ LOG_MODULE_REGISTER(klor_status, LOG_LEVEL_INF);
 #define BUF_LEN (KEYMAP_GLYPH_ROWS * (HALF_COLS + 1) + 1)
 
 /*
- * Spacing chosen to fill 128x64 rather than sit centred in the middle of it.
+ * Spacing to fill 128x64 rather than sit centred with margin all round.
  *
- *   width  = HALF_COLS * 8 + (HALF_COLS - 1) * LETTER_SPACE
- *          = 6 * 8 + 5 * 15 = 123 of 128
- *   height = ROWS * 8 + (ROWS - 1) * LINE_SPACE
- *          = 4 * 8 + 3 * 10 = 62 of 64
+ * Budget for the WORST case, which is that LVGL adds the spacing after every
+ * character rather than only between them. It does exactly that, and assuming
+ * otherwise overflowed the screen: 6 * (8 + 15) = 138 px on a 128 px panel,
+ * which made the object scrollable and drew a scrollbar down the right edge --
+ * the "thick line" that looked like a rendering fault but was LVGL doing as
+ * it was told.
  *
- * unscii_8 is 8x8. Raise LETTER_SPACE past 16 and the text will clip.
+ *   width  = HALF_COLS * (8 + LETTER_SPACE) = 6 * (8 + 13) = 126 of 128
+ *   height = ROWS      * (8 + LINE_SPACE)   = 4 * (8 +  7) =  60 of 64
+ *
+ * unscii_8 is 8x8, so LETTER_SPACE must stay at or below 13.
  */
-#define LETTER_SPACE 15
-#define LINE_SPACE   10
+#define LETTER_SPACE 13
+#define LINE_SPACE   7
 
 struct layer_state {
     uint8_t layer;
@@ -112,6 +117,11 @@ lv_obj_t *zmk_display_status_screen(void) {
         return NULL;
     }
 
+    /* Belt and braces against the scrollbar: even if the text is ever a pixel
+     * too wide, no bar should appear over the keymap. */
+    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
+
     keymap_label = lv_label_create(screen);
     if (!keymap_label) {
         LOG_ERR("no LVGL memory for the keymap label");
@@ -124,6 +134,8 @@ lv_obj_t *zmk_display_status_screen(void) {
     lv_obj_set_style_text_letter_space(keymap_label, LETTER_SPACE, LV_PART_MAIN);
     lv_obj_set_style_text_line_space(keymap_label, LINE_SPACE, LV_PART_MAIN);
     lv_obj_set_style_text_align(keymap_label, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
+    lv_obj_clear_flag(keymap_label, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(keymap_label, LV_SCROLLBAR_MODE_OFF);
     lv_obj_align(keymap_label, LV_ALIGN_CENTER, 0, 0);
 
     /* Paint immediately: layer_state_changed only fires on a change, so without
