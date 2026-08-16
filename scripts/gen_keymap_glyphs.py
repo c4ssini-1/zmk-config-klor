@@ -43,7 +43,7 @@ GLYPH = {
     "BSLH": "\\", "PIPE": "|", "SEMI": ";", "COLON": ":",
     "SQT": "'", "DQT": '"', "COMMA": ",", "DOT": ".", "FSLH": "/",
     "GRAVE": "`", "TILDE": "~",
-    "SPACE": "_", "RET": "r", "BSPC": "<", "TAB": ">", "ESC": "e", "DEL": "d",
+    "SPACE": " ", "RET": "r", "BSPC": "<", "TAB": ">", "ESC": "e", "DEL": "d",
     "LSHFT": "s", "RSHFT": "s", "LCTRL": "c", "RCTRL": "c",
     "LALT": "a", "RALT": "a", "LGUI": "g", "RGUI": "g",
     "C_MUTE": "m", "C_PP": "p", "C_VOL_UP": "+", "C_VOL_DN": "-",
@@ -95,7 +95,7 @@ def glyph_for(binding):
     if binding.startswith("&mo "):
         return binding.split()[-1][0].lower()   # xtra -> x, fn -> f, sys -> s
     if binding.startswith("&spc"):
-        return "_"                              # tap is Space
+        return " "                              # tap is Space, drawn blank
     if binding.startswith("&bt "):
         return "b"
     if binding.startswith("&rgb_ug"):
@@ -154,7 +154,23 @@ def main():
         f"#define KEYMAP_GLYPH_COLS {ncols}",
         f"#define KEYMAP_GLYPH_LAYERS {len(names)}",
         "",
-        "/* [layer][row] -> one string of KEYMAP_GLYPH_COLS chars, ' ' where no key. */",
+        "/*",
+        " * Which grid cells hold a key at all. Needed because a cell can be blank",
+        " * yet still be a key -- Space is drawn as nothing -- and the renderer must",
+        " * not mistake that for a hole in the board.",
+        " */",
+        f"static const char *const keymap_present[{nrows}] = {{",
+    ]
+    present = [[" "] * ncols for _ in range(nrows)]
+    for p_ in range(44):
+        r, c = pos[p_]
+        present[r][c] = "x"
+    for r in range(nrows):
+        lines.append(f'    "{"".join(present[r])}",')
+    lines += [
+        "};",
+        "",
+        "/* [layer][row] -> one string of KEYMAP_GLYPH_COLS chars. */",
         f"static const char *const keymap_glyphs[{len(names)}][{nrows}] = {{",
     ]
 

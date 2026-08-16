@@ -103,10 +103,13 @@ static void render_layer(uint8_t layer) {
                 *w++ = row[C / 2];
             } else {
                 /* A dot only where it genuinely sits between two keys. Rows 0
-                 * and 3 have no column 0, so without this an orphan dot floats
-                 * at the left edge with nothing beside it. */
-                char l = row[(C - 1) / 2], r = row[(C + 1) / 2];
-                *w++ = (l != ' ' && r != ' ') ? '.' : ' ';
+                 * and 3 have no column 0 or 11, so without this an orphan dot
+                 * floats at the edge with nothing beside it.
+                 *
+                 * Test presence, not the glyph: Space is a real key drawn as
+                 * blank, and its neighbouring dots must stay. */
+                const char *pres = keymap_present[R];
+                *w++ = (pres[(C - 1) / 2] != ' ' && pres[(C + 1) / 2] != ' ') ? '.' : ' ';
             }
         }
         if (R < OUT_ROWS - 1) {

@@ -13,13 +13,25 @@
 #define KEYMAP_GLYPH_COLS 12
 #define KEYMAP_GLYPH_LAYERS 4
 
-/* [layer][row] -> one string of KEYMAP_GLYPH_COLS chars, ' ' where no key. */
+/*
+ * Which grid cells hold a key at all. Needed because a cell can be blank
+ * yet still be a key -- Space is drawn as nothing -- and the renderer must
+ * not mistake that for a hole in the board.
+ */
+static const char *const keymap_present[4] = {
+    " xxxxxxxxxx ",
+    "xxxxxxxxxxxx",
+    "xxxxxxxxxxxx",
+    " xxxxxxxxxx ",
+};
+
+/* [layer][row] -> one string of KEYMAP_GLYPH_COLS chars. */
 static const char *const keymap_glyphs[4][4] = {
     { /* BASE */
         " QWERTYUIOP ",
         "eASDFGHJKL]<",
         "sZXCVBNM[;\\r",
-        " cax_mp,./' ",
+        " cax mp,./' ",
     },
     { /* XTRA */
         " `~!@#1230+ ",
