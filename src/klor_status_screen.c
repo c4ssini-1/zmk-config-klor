@@ -51,32 +51,37 @@ LOG_MODULE_REGISTER(klor_status, LOG_LEVEL_INF);
 #define BUF_LEN (OUT_ROWS * (OUT_COLS + 1) + 1)
 
 /*
- * A lattice position is interleaved between every pair of keys, on both axes,
- * so the output grid is twice the key grid minus one:
+ * A dot is interleaved between every pair of keys ACROSS a row, so the output grid
+ * is twice the key columns minus one:
  *
- *     Q . W . E     keys on even rows and columns
- *      . . . .      dots where a row boundary crosses a column boundary
- *     A . S . D
+ *     Q . W . E . R . T
+ *     e . A . S . D . F
  *
- * The dots land exactly midway between glyphs, which is what makes it read as
- * dot-grid paper rather than scattered punctuation.
+ * Dots share the baseline with the letters, which is the whole point. An
+ * earlier version put them on their own rows to make a full lattice, and it
+ * looked wrong: '.' in unscii_8 is a 2x2 glyph sitting on the baseline, so a
+ * dedicated dot row is 7 of its 9 px empty and the dot hugs the row below
+ * instead of sitting midway between two.
  *
- * Spacing must budget for the WORST case: LVGL adds letter_space after EVERY
- * character, not only between them. Assuming otherwise is what overflowed the
- * panel before -- 6 * (8 + 15) = 138 px on 128 px -- which made the object
- * scrollable and drew a bar down the right edge.
+ * SIZING. Two constants here are easy to get wrong and both have already
+ * caused visible bugs:
+ *
+ *   - unscii_8's line_height is 9, not 8. The glyph box is 8x8 but the font
+ *     declares 9. Budgeting on 8 overflowed the panel and pushed the bottom
+ *     rows off the screen.
+ *   - LVGL adds letter_space after EVERY character, not only between them.
+ *     Budgeting on gaps-only overflowed the width and drew a scrollbar.
+ *
+ * So both are budgeted at (size + space) * count:
  *
  *   width  = OUT_COLS * (8 + LETTER_SPACE) = 11 * (8 + 3) = 121 of 128
- *   height = OUT_ROWS * (8 + LINE_SPACE)   =  7 * (8 + 1) =  63 of 64
- *
- * Key pitch works out at 22 px across and 18 px down, so the keys sit almost
- * exactly where they did before the dots were added.
+ *   height = OUT_ROWS * (9 + LINE_SPACE)   =  4 * (9 + 6) =  60 of 64
  */
 #define OUT_COLS (2 * HALF_COLS - 1)
-#define OUT_ROWS (2 * KEYMAP_GLYPH_ROWS - 1)
+#define OUT_ROWS (KEYMAP_GLYPH_ROWS)
 
 #define LETTER_SPACE 3
-#define LINE_SPACE   1
+#define LINE_SPACE   6
 
 struct layer_state {
     uint8_t layer;
@@ -92,14 +97,16 @@ static void render_layer(uint8_t layer) {
 
     char *w = keymap_text;
     for (int R = 0; R < OUT_ROWS; R++) {
-        const char *row = (R % 2 == 0) ? keymap_glyphs[layer][R / 2] : NULL;
+        const char *row = keymap_glyphs[layer][R];
         for (int C = 0; C < OUT_COLS; C++) {
-            if (row) {
-                /* key row: glyph on even columns, nothing between */
-                *w++ = (C % 2 == 0) ? row[C / 2] : ' ';
+            if (C % 2 == 0) {
+                *w++ = row[C / 2];
             } else {
-                /* lattice row: a dot only where the boundaries cross */
-                *w++ = (C % 2 == 1) ? '.' : ' ';
+                /* A dot only where it genuinely sits between two keys. Rows 0
+                 * and 3 have no column 0, so without this an orphan dot floats
+                 * at the left edge with nothing beside it. */
+                char l = row[(C - 1) / 2], r = row[(C + 1) / 2];
+                *w++ = (l != ' ' && r != ' ') ? '.' : ' ';
             }
         }
         if (R < OUT_ROWS - 1) {
