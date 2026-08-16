@@ -47,26 +47,36 @@ LOG_MODULE_REGISTER(klor_status, LOG_LEVEL_INF);
 /* Columns 0..5 are this half. The transform is 12 wide, split evenly. */
 #define HALF_COLS (KEYMAP_GLYPH_COLS / 2)
 
-/* Rows joined by '\n', so ROWS * (HALF_COLS + 1) covers the separators, plus NUL. */
-#define BUF_LEN (KEYMAP_GLYPH_ROWS * (HALF_COLS + 1) + 1)
+/* Rows joined by '\n', so OUT_ROWS * (OUT_COLS + 1) covers the separators, plus NUL. */
+#define BUF_LEN (OUT_ROWS * (OUT_COLS + 1) + 1)
 
 /*
- * Spacing to fill 128x64 rather than sit centred with margin all round.
+ * A lattice position is interleaved between every pair of keys, on both axes,
+ * so the output grid is twice the key grid minus one:
  *
- * Budget for the WORST case, which is that LVGL adds the spacing after every
- * character rather than only between them. It does exactly that, and assuming
- * otherwise overflowed the screen: 6 * (8 + 15) = 138 px on a 128 px panel,
- * which made the object scrollable and drew a scrollbar down the right edge --
- * the "thick line" that looked like a rendering fault but was LVGL doing as
- * it was told.
+ *     Q . W . E     keys on even rows and columns
+ *      . . . .      dots where a row boundary crosses a column boundary
+ *     A . S . D
  *
- *   width  = HALF_COLS * (8 + LETTER_SPACE) = 6 * (8 + 13) = 126 of 128
- *   height = ROWS      * (8 + LINE_SPACE)   = 4 * (8 +  7) =  60 of 64
+ * The dots land exactly midway between glyphs, which is what makes it read as
+ * dot-grid paper rather than scattered punctuation.
  *
- * unscii_8 is 8x8, so LETTER_SPACE must stay at or below 13.
+ * Spacing must budget for the WORST case: LVGL adds letter_space after EVERY
+ * character, not only between them. Assuming otherwise is what overflowed the
+ * panel before -- 6 * (8 + 15) = 138 px on 128 px -- which made the object
+ * scrollable and drew a bar down the right edge.
+ *
+ *   width  = OUT_COLS * (8 + LETTER_SPACE) = 11 * (8 + 3) = 121 of 128
+ *   height = OUT_ROWS * (8 + LINE_SPACE)   =  7 * (8 + 1) =  63 of 64
+ *
+ * Key pitch works out at 22 px across and 18 px down, so the keys sit almost
+ * exactly where they did before the dots were added.
  */
-#define LETTER_SPACE 13
-#define LINE_SPACE   7
+#define OUT_COLS (2 * HALF_COLS - 1)
+#define OUT_ROWS (2 * KEYMAP_GLYPH_ROWS - 1)
+
+#define LETTER_SPACE 3
+#define LINE_SPACE   1
 
 struct layer_state {
     uint8_t layer;
@@ -81,12 +91,18 @@ static void render_layer(uint8_t layer) {
     }
 
     char *w = keymap_text;
-    for (int r = 0; r < KEYMAP_GLYPH_ROWS; r++) {
-        const char *row = keymap_glyphs[layer][r];
-        for (int c = 0; c < HALF_COLS && row[c]; c++) {
-            *w++ = row[c];
+    for (int R = 0; R < OUT_ROWS; R++) {
+        const char *row = (R % 2 == 0) ? keymap_glyphs[layer][R / 2] : NULL;
+        for (int C = 0; C < OUT_COLS; C++) {
+            if (row) {
+                /* key row: glyph on even columns, nothing between */
+                *w++ = (C % 2 == 0) ? row[C / 2] : ' ';
+            } else {
+                /* lattice row: a dot only where the boundaries cross */
+                *w++ = (C % 2 == 1) ? '.' : ' ';
+            }
         }
-        if (r < KEYMAP_GLYPH_ROWS - 1) {
+        if (R < OUT_ROWS - 1) {
             *w++ = '\n';
         }
     }
