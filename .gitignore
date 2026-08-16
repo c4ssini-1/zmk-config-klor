@@ -1,0 +1,3 @@
+# Build output downloaded from CI -- regenerate from the Actions tab,
+# do not track. Contains firmware.zip and the extracted .uf2 images.
+Firmware/
