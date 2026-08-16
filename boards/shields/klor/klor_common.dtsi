@@ -20,15 +20,32 @@
 		diode-direction = "col2row";
 	};
 
+	/*
+	 * steps = pulses per FULL ROTATION, which replaced the deprecated
+	 * "resolution" (pulses per detent, which was 4 here). These are not the
+	 * same units, so this is a conversion rather than a rename:
+	 *
+	 *   20 detents x 4 quadrature pulses = 80 pulses per rotation
+	 *
+	 * The result is identical to the old behaviour. In steps mode the driver
+	 * reports degrees, so one detent is (4 * 360) / 80 = 18 degrees, and ZMK
+	 * fires a behavior every 360 / CONFIG_ZMK_KEYMAP_SENSORS_DEFAULT_TRIGGERS_
+	 * PER_ROTATION = 360 / 20 = 18 degrees. One detent, one trigger, as before.
+	 *
+	 * If these encoders turn out not to have 20 detents, override
+	 * triggers-per-rotation on the sensors node rather than fiddling with
+	 * steps -- steps describes the hardware, triggers-per-rotation describes
+	 * how often you want the keymap to fire.
+	 */
 	left_encoder: encoder_left {
 		compatible = "alps,ec11";
-		resolution = <4>;
+		steps = <80>;
 		status = "disabled";
 	};
 
 	right_encoder: encoder_right {
 		compatible = "alps,ec11";
-		resolution = <4>;
+		steps = <80>;
 		status = "disabled";
 	};
 
