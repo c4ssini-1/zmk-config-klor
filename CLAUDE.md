@@ -73,8 +73,14 @@ files from `config/` **before** the shield directory, so:
 | [config/klor.conf](config/klor.conf) | `boards/shields/klor/klor.conf` |
 
 `config/klor.conf` applies to **both** halves: ZMK matches the conf filename against the
-shield *directory* name (`klor`), not the per-half shield names. `klor_left.conf` and
-`klor_right.conf` exist but are empty.
+shield *directory* name (`klor`), not the per-half shield names.
+
+**For anything that must differ per half, use `boards/shields/klor/klor_{left,right}.conf`.**
+Unlike the shield's `klor.conf`, these are *not* shadowed — the build log shows each half
+merging its own. `klor_left.conf` carries the custom status screen, which would break the
+right half if it were shared: `ZMK_DISPLAY_STATUS_SCREEN_CUSTOM` makes the firmware call
+`zmk_display_status_screen()`, and the only implementation is gated on
+`ZMK_SPLIT_ROLE_CENTRAL`, so the peripheral would fail to link. `klor_right.conf` is empty.
 
 Also inert: `klor_status_screen.c`, `battery_status.c`, `output_status.c`,
 `profile_status.c`, and `icons/`. They are guarded by `CONFIG_CUSTOM_WIDGET_*` symbols that
@@ -164,6 +170,29 @@ variant that remains deliberately unused.
 
 The file opens with a **position map** comment numbering all 44 bindings, and each layer
 carries a hand-maintained ASCII diagram. Keep both in sync when bindings change.
+
+## The OLED keymap display
+
+[src/klor_status_screen.c](src/klor_status_screen.c) replaces ZMK's built-in status screen
+on the **left half only** with a miniature map of the active layer. There is no room for
+both on 128×64 at 1 bpp, and the peripheral cannot show a layer at all — ZMK encodes that
+itself: `ZMK_WIDGET_LAYER_STATUS depends on !ZMK_SPLIT || ZMK_SPLIT_ROLE_CENTRAL`.
+
+Implementation notes worth keeping:
+
+- **One label, not 44 objects.** The whole board is a single multi-line string rendered in
+  `lv_font_unscii_8`, an 8×8 fixed-width bitmap font. Monospace is what makes the grid line
+  up; 12 columns × 8 px is 96 px inside a 128 px panel.
+- **The glyphs are generated, not hand-written.** `src/keymap_glyphs.h` comes from
+  [scripts/gen_keymap_glyphs.py](scripts/gen_keymap_glyphs.py), which parses the keymap and
+  the matrix transform. **Re-run it after any keymap change** or the display will
+  confidently show the wrong keys. It resolves `&trans` down the layer chain, so what is
+  drawn is what the key actually does.
+- **Switching to a custom screen silently drops font and theme config.** ZMK sets
+  `LV_FONT_MONTSERRAT_*`, the default font and `LV_USE_THEME_MONO` inside
+  `if ZMK_DISPLAY_STATUS_SCREEN_BUILT_IN`. Choosing the custom screen loses all of it, so
+  `klor_left.conf` asks for `LV_FONT_UNSCII_8`, `LV_FONT_DEFAULT_UNSCII_8` and
+  `LV_USE_THEME_MONO` explicitly.
 
 ## Per-key reactive underglow
 

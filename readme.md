@@ -167,4 +167,3 @@ the normal firmware back.
   node describing the polydactyl key positions. The shield still uses the older
   `zmk,matrix_transform`, which ZMK continues to honour.
 - Per-layer keymap display on the OLEDs.
-- Pixart Paw3204 trackball support.
