@@ -15,7 +15,7 @@ if KLOR_RGB_REACTIVE
 config KLOR_RGB_REACTIVE_IDLE_BRT
     int "Idle brightness, percent"
     range 0 100
-    default 20
+    default 10
 
 config KLOR_RGB_REACTIVE_PRESS_BRT
     int "Pressed-key brightness, percent"
