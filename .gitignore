@@ -1,3 +1,11 @@
 # Build output downloaded from CI -- regenerate from the Actions tab,
 # do not track. Contains firmware.zip and the extracted .uf2 images.
 Firmware/
+
+# Credentials. This repository is public and `git add -A` is used routinely,
+# so anything holding a token must be unstageable by construction, not by
+# remembering to be careful.
+.env
+.env.*
+*.token
+gh-token
