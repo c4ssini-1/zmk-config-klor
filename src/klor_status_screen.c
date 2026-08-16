@@ -11,6 +11,12 @@
  * has nothing to report there. ZMK encodes the same restriction in Kconfig:
  * ZMK_WIDGET_LAYER_STATUS depends on !ZMK_SPLIT || ZMK_SPLIT_ROLE_CENTRAL.
  *
+ * ONLY THIS HALF'S KEYS ARE DRAWN. The full 44-key grid fitted, but reading it
+ * meant picking your own hand out of a dense block, and half the screen showed
+ * keys under the other hand. Columns 0-5 are the left half; the right half's
+ * columns are simply not rendered. That frees enough width to space the glyphs
+ * out across the whole panel instead of cramming them into the middle.
+ *
  * WHY ONE LABEL RATHER THAN 44 OBJECTS
  * Forty-four LVGL objects would cost far more RAM than this needs and would have
  * to be laid out by hand. Instead the whole board is one multi-line string in a
@@ -38,8 +44,24 @@
 
 LOG_MODULE_REGISTER(klor_status, LOG_LEVEL_INF);
 
-/* Rows joined by '\n', so ROWS * (COLS + 1) covers the separators, plus a NUL. */
-#define BUF_LEN (KEYMAP_GLYPH_ROWS * (KEYMAP_GLYPH_COLS + 1) + 1)
+/* Columns 0..5 are this half. The transform is 12 wide, split evenly. */
+#define HALF_COLS (KEYMAP_GLYPH_COLS / 2)
+
+/* Rows joined by '\n', so ROWS * (HALF_COLS + 1) covers the separators, plus NUL. */
+#define BUF_LEN (KEYMAP_GLYPH_ROWS * (HALF_COLS + 1) + 1)
+
+/*
+ * Spacing chosen to fill 128x64 rather than sit centred in the middle of it.
+ *
+ *   width  = HALF_COLS * 8 + (HALF_COLS - 1) * LETTER_SPACE
+ *          = 6 * 8 + 5 * 15 = 123 of 128
+ *   height = ROWS * 8 + (ROWS - 1) * LINE_SPACE
+ *          = 4 * 8 + 3 * 10 = 62 of 64
+ *
+ * unscii_8 is 8x8. Raise LETTER_SPACE past 16 and the text will clip.
+ */
+#define LETTER_SPACE 15
+#define LINE_SPACE   10
 
 struct layer_state {
     uint8_t layer;
@@ -56,8 +78,8 @@ static void render_layer(uint8_t layer) {
     char *w = keymap_text;
     for (int r = 0; r < KEYMAP_GLYPH_ROWS; r++) {
         const char *row = keymap_glyphs[layer][r];
-        while (*row) {
-            *w++ = *row++;
+        for (int c = 0; c < HALF_COLS && row[c]; c++) {
+            *w++ = row[c];
         }
         if (r < KEYMAP_GLYPH_ROWS - 1) {
             *w++ = '\n';
@@ -98,10 +120,10 @@ lv_obj_t *zmk_display_status_screen(void) {
 
     lv_obj_set_style_text_font(keymap_label, &lv_font_unscii_8, LV_PART_MAIN);
 
-    /* 4 rows of 8 px is only 32 of the 64 available, so spread them out --
-     * easier to read, and it keeps the rows visually distinct on a mono panel. */
-    lv_obj_set_style_text_line_space(keymap_label, 6, LV_PART_MAIN);
-    lv_obj_set_style_text_align(keymap_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    /* Spread to fill the panel rather than clustering in the centre. */
+    lv_obj_set_style_text_letter_space(keymap_label, LETTER_SPACE, LV_PART_MAIN);
+    lv_obj_set_style_text_line_space(keymap_label, LINE_SPACE, LV_PART_MAIN);
+    lv_obj_set_style_text_align(keymap_label, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
     lv_obj_align(keymap_label, LV_ALIGN_CENTER, 0, 0);
 
     /* Paint immediately: layer_state_changed only fires on a change, so without
