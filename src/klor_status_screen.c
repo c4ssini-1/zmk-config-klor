@@ -269,6 +269,12 @@ static void render(void) {
 }
 
 static void set_layer_cb(struct layer_state state) {
+    /* Same reasoning as set_key_cb: zmk_layer_state_changed fires on activate
+     * and deactivate both, and the highest active layer is often the same
+     * afterwards. Repainting then costs a full panel flush for nothing. */
+    if (state.layer == cur_layer) {
+        return;
+    }
     cur_layer = state.layer;
     render();
 }
@@ -296,6 +302,12 @@ ZMK_SUBSCRIPTION(klor_layer_widget, zmk_layer_state_changed);
 static uint64_t held_acc;
 
 static void set_key_cb(struct key_state state) {
+    /* A redraw is a full canvas repaint and a full-panel I2C flush, so it must
+     * not happen unless the picture actually changes. Without this the screen
+     * repainted identically on every key the grid does not show. */
+    if (state.held == cur_held) {
+        return;
+    }
     cur_held = state.held;
     render();
 }
@@ -305,7 +317,12 @@ static struct key_state key_get_state(const zmk_event_t *eh) {
     const struct zmk_position_state_changed *ev =
         eh ? as_zmk_position_state_changed(eh) : NULL;
 
-    if (ev && ev->position < KEYMAP_GLYPH_POSITIONS) {
+    /* Only positions this half draws are tracked. The central also sees the
+     * peripheral's keys, and those live in columns 6..11, which are not
+     * rendered -- letting them into the held set would mean a full repaint for
+     * every right-hand keystroke that changed nothing on screen. */
+    if (ev && ev->position < KEYMAP_GLYPH_POSITIONS &&
+        keymap_pos_col[ev->position] < HALF_COLS) {
         if (ev->state) {
             held_acc |= 1ULL << ev->position;
         } else {

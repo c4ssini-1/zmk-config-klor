@@ -203,6 +203,18 @@ Implementation notes worth keeping:
   snapshot survives. A state of "which key just changed" would therefore drop events and
   leave highlights stuck on. Carrying the whole held set as a bitmask makes a coalesced
   update still correct.
+- **The screen must not render on the system work queue.** ZMK defaults to
+  `ZMK_DISPLAY_WORK_QUEUE_SYSTEM`, which runs UI updates on the same queue that processes
+  key events and sends HID reports. Harmless when the screen only redrew on a layer change;
+  **not** harmless once it redraws on every press and release, because a full canvas repaint
+  plus a full-panel I2C flush (1 KB at 400 kHz) then sits in front of the next keystroke.
+  This shipped once and cost roughly three keys in ten plus a stuck Shift from a delayed
+  release — a keyboard fault with no trace in the build log. `klor_left.conf` sets
+  `ZMK_DISPLAY_WORK_QUEUE_DEDICATED` so a slow redraw can only lag the display.
+- **Never repaint when the picture would not change.** Both widget callbacks compare against
+  the current state and return early. The central sees the peripheral's key events too, and
+  those positions are in columns 6–11 which are never drawn, so they are filtered out at the
+  event rather than allowed to trigger an identical repaint.
 - **`LV_USE_CANVAS` is `select`ed, not relied on.** lvgl only defaults it on when
   `LV_CONF_MINIMAL` is off. `LV_USE_IMAGE` is selected alongside it because lvgl merely
   `imply`s that from canvas, and an `imply` can be overridden to `n` — which fails to link
