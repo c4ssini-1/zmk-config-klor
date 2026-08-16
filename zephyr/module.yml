@@ -1,0 +1,9 @@
+# Marks this repository as a Zephyr module so the vendored klor shield is found
+# via board_root, instead of through the deprecated config/boards folder.
+#
+# board_root points at the PARENT of a "boards" directory, so "." means the repo
+# root, which contains boards/shields/klor. Layout matches ZMK's official
+# unified-zmk-config-template.
+build:
+  settings:
+    board_root: .

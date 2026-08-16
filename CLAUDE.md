@@ -53,8 +53,8 @@ files from `config/` **before** the shield directory, so:
 
 | Live (edit these) | Shadowed (inert, upstream leftovers) |
 | :--- | :--- |
-| [config/klor.keymap](config/klor.keymap) | `config/boards/shields/klor/klor.keymap` |
-| [config/klor.conf](config/klor.conf) | `config/boards/shields/klor/klor.conf` |
+| [config/klor.keymap](config/klor.keymap) | `boards/shields/klor/klor.keymap` |
+| [config/klor.conf](config/klor.conf) | `boards/shields/klor/klor.conf` |
 
 `config/klor.conf` applies to **both** halves: ZMK matches the conf filename against the
 shield *directory* name (`klor`), not the per-half shield names. `klor_left.conf` and
@@ -69,8 +69,15 @@ adding a CMakeLists.txt, the Kconfig symbols, and fixing the include paths.
 
 ## Shield structure
 
-`config/boards/shields/klor/` — a shield vendored into the user config so it can be edited
-without forking ZMK. The devicetree include chain is:
+`boards/shields/klor/` — a shield vendored into this repo so it can be edited without
+forking ZMK.
+
+The repo is a **Zephyr module**: [zephyr/module.yml](zephyr/module.yml) sets
+`board_root: .`, which is what makes ZMK find `boards/shields/klor`. The shield used to
+live at `config/boards/`, which still works but emits a CMake deprecation warning — the
+layout now matches ZMK's `unified-zmk-config-template`. Do not move it back.
+
+The devicetree include chain is:
 
 ```
 klor_left.overlay ─┐

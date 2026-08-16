@@ -27,6 +27,9 @@ longer built. Fixed here:
 | `wakeup-source` added to the kscan node | Needed to wake from deep sleep on a keypress |
 | `west.yml` pinned to a ZMK commit | Upstream tracked `main` unpinned, which is how it rotted. Bump the SHA deliberately when you want newer ZMK |
 | Both encoders bound | ZMK forwards sensor events from the peripheral half now, so the right encoder works — upstream's "known issue" is out of date |
+| `CONFIG_WS2812_STRIP` removed | Zephyr 4.1 split it into per-transport symbols. The old name is undefined, and assigning an undefined symbol aborts the build. `WS2812_STRIP_SPI` turns itself on from the devicetree |
+| EC11 `resolution` → `steps` | `resolution` is deprecated. Different units — pulses per detent vs per rotation — so `<4>` becomes `<80>`. Behaviour is unchanged |
+| Shield moved to `boards/` + `zephyr/module.yml` | `config/boards` is deprecated; the repo is now a Zephyr module, matching ZMK's `unified-zmk-config-template` |
 
 ## WHAT THE KLOR HARDWARE CAN AND CANNOT DO UNDER ZMK
 
