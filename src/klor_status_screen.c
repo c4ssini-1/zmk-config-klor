@@ -7,16 +7,25 @@
  * trade: 128x64 at one bit per pixel has no room for both a keymap and status
  * icons, and the keymap is the thing worth looking at.
  *
- * LEFT HALF ONLY, and that is not a choice. The peripheral never runs the keymap
- * -- it forwards key positions and nothing else -- so zmk_keymap_highest_layer_active()
- * has nothing to report there. ZMK encodes the same restriction in Kconfig:
- * ZMK_WIDGET_LAYER_STATUS depends on !ZMK_SPLIT || ZMK_SPLIT_ROLE_CENTRAL.
+ * RUNS ON BOTH HALVES, each drawing only its own keys. The full 44-key grid
+ * fitted, but reading it meant picking your own hand out of a dense block, and
+ * half the screen showed keys under the other hand. Columns 0-5 are the left
+ * half and 6-11 the right; each board renders its own six and ignores the rest.
+ * That frees enough width to space the glyphs out across the whole panel
+ * instead of cramming them into the middle.
  *
- * ONLY THIS HALF'S KEYS ARE DRAWN. The full 44-key grid fitted, but reading it
- * meant picking your own hand out of a dense block, and half the screen showed
- * keys under the other hand. Columns 0-5 are the left half; the right half's
- * columns are simply not rendered. That frees enough width to space the glyphs
- * out across the whole panel instead of cramming them into the middle.
+ * Pressed-key highlighting works identically on both, because
+ * zmk_position_state_changed is raised locally by each board's own matrix scan.
+ * Nothing crosses the split link for it.
+ *
+ * THE LAYER IS CENTRAL-ONLY, AND THAT IS A HARD BUILD CONSTRAINT, not a choice.
+ * The peripheral never runs the keymap, and ZMK does not even compile src/keymap.c
+ * or src/events/layer_state_changed.c into a non-central build -- see the
+ * "if ((NOT CONFIG_ZMK_SPLIT) OR CONFIG_ZMK_SPLIT_ROLE_CENTRAL)" block in
+ * app/CMakeLists.txt. So zmk_keymap_highest_layer_active() and a subscription to
+ * the layer event would both fail to LINK on the right half, not merely return
+ * nothing. Everything layer-related is therefore compiled out there, and the
+ * peripheral draws BASE until the layer is carried across the split link.
  *
  * The glyphs come from src/keymap_glyphs.h, generated from the keymap by
  * scripts/gen_keymap_glyphs.py. Regenerate it after changing the keymap or the
@@ -56,16 +65,58 @@
 #include <zmk/display.h>
 #include <zmk/display/status_screen.h>
 #include <zmk/event_manager.h>
-#include <zmk/events/layer_state_changed.h>
 #include <zmk/events/position_state_changed.h>
+
+/*
+ * Same condition ZMK uses to decide whether to compile keymap.c and
+ * layer_state_changed.c at all. Guarding on it keeps the peripheral from
+ * referencing symbols that were never built.
+ */
+#if !IS_ENABLED(CONFIG_ZMK_SPLIT) || IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+#define KLOR_HAS_LAYER_STATE 1
+#include <zmk/events/layer_state_changed.h>
 #include <zmk/keymap.h>
+#else
+#define KLOR_HAS_LAYER_STATE 0
+#endif
+
+/*
+ * The split-link indicator is the mirror image: only the peripheral can report
+ * whether it has found the other half. zmk_split_peripheral_status_changed is
+ * raised by ZMK's own peripheral.c on connect and disconnect, and
+ * bluetooth/peripheral.c -- which provides the getter for the state at boot --
+ * is compiled only when NOT ZMK_SPLIT_ROLE_CENTRAL.
+ */
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE) && !IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+#define KLOR_SHOW_LINK_STATUS 1
+#include <zmk/events/split_peripheral_status_changed.h>
+#include <zmk/split/bluetooth/peripheral.h>
+#else
+#define KLOR_SHOW_LINK_STATUS 0
+#endif
 
 #include "keymap_glyphs.h"
 
 LOG_MODULE_REGISTER(klor_status, LOG_LEVEL_INF);
 
-/* Columns 0..5 are this half. The transform is 12 wide, split evenly. */
+/* The transform is 12 columns wide, split evenly between the two halves. */
 #define HALF_COLS (KEYMAP_GLYPH_COLS / 2)
+
+/*
+ * Which slice of the grid this board draws. The left overlay owns columns 0-5;
+ * the right adds col-offset = <6> so its keys land in 6-11.
+ */
+#if IS_ENABLED(CONFIG_SHIELD_KLOR_LEFT)
+#define COL_BASE 0
+#else
+#define COL_BASE HALF_COLS
+#endif
+
+/* Grid column -> cell index on this panel, or -1 for the other half's keys. */
+static inline int local_col(int c) {
+    int lc = c - COL_BASE;
+    return (lc >= 0 && lc < HALF_COLS) ? lc : -1;
+}
 
 /*
  * A dot is interleaved between every pair of keys ACROSS a row, so the output
@@ -149,6 +200,51 @@ LOG_MODULE_REGISTER(klor_status, LOG_LEVEL_INF);
 #define ON_GLASS_WHITE lv_color_black()
 #define ON_GLASS_BLACK lv_color_white()
 
+#if KLOR_SHOW_LINK_STATUS
+/*
+ * A tick when this half has found the central, a cross when it has not, drawn
+ * in the last cell of the bottom row.
+ *
+ * THAT CELL IS EMPTY BY LUCK OF THE MATRIX, NOT BY RESERVATION. The transform
+ * puts no key at row 3, column 11 -- the bottom row's rightmost position is
+ * column 10, the apostrophe -- so the mark has the cell to itself. If a key is
+ * ever added there, this will draw over its glyph.
+ *
+ * unscii_8 is 7-bit ASCII and has neither a tick nor a cross, so these are
+ * pixel bitmaps rather than characters. One bit per pixel, bit 6 leftmost.
+ * They are painted with lv_canvas_set_px after the draw layer is dispatched,
+ * which keeps them off the draw-task heap entirely; for indexed formats that
+ * call takes the palette index straight from color.blue, so the same
+ * ON_GLASS_* colours apply.
+ */
+#define MARK_W 7
+#define MARK_H 7
+
+static const uint8_t mark_tick[MARK_H] = {
+    0x00, /* ....... */
+    0x01, /* ......# */
+    0x02, /* .....#. */
+    0x44, /* #...#.. */
+    0x28, /* .#.#... */
+    0x10, /* ..#.... */
+    0x00, /* ....... */
+};
+
+static const uint8_t mark_cross[MARK_H] = {
+    0x41, /* #.....# */
+    0x22, /* .#...#. */
+    0x14, /* ..#.#.. */
+    0x08, /* ...#... */
+    0x14, /* ..#.#.. */
+    0x22, /* .#...#. */
+    0x41, /* #.....# */
+};
+
+/* Bottom row, rightmost cell -- immediately after the apostrophe. */
+#define LINK_CELL_ROW (OUT_ROWS - 1)
+#define LINK_CELL_COL (HALF_COLS - 1)
+#endif /* KLOR_SHOW_LINK_STATUS */
+
 /*
  * Canvas backing store. Palette first, then pixels -- see the header comment.
  * 4-byte aligned because the palette entries are lv_color32_t.
@@ -193,7 +289,7 @@ static void build_text(uint8_t layer) {
              * flush while the others started with a dot, which broke the grid.
              * A continuous dot column reads as a grid; a ragged one does not.
              */
-            *w++ = (C % 2 == 0) ? row[C / 2] : '.';
+            *w++ = (C % 2 == 0) ? row[COL_BASE + C / 2] : '.';
         }
         if (R < OUT_ROWS - 1) {
             *w++ = '\n';
@@ -201,6 +297,26 @@ static void build_text(uint8_t layer) {
     }
     *w = '\0';
 }
+
+#if KLOR_SHOW_LINK_STATUS
+static bool link_connected;
+
+static void draw_link_mark(void) {
+    const uint8_t *rows = link_connected ? mark_tick : mark_cross;
+
+    /* Centre the 7x7 mark in the 8x9 glyph box of its cell. */
+    int x0 = ORIGIN_X + (2 * LINK_CELL_COL) * CELL_W + (GLYPH_W - MARK_W) / 2;
+    int y0 = ORIGIN_Y + LINK_CELL_ROW * CELL_H + (GLYPH_H - MARK_H) / 2;
+
+    for (int y = 0; y < MARK_H; y++) {
+        for (int x = 0; x < MARK_W; x++) {
+            if (rows[y] & (1 << (MARK_W - 1 - x))) {
+                lv_canvas_set_px(keymap_canvas, x0 + x, y0 + y, ON_GLASS_WHITE, LV_OPA_COVER);
+            }
+        }
+    }
+}
+#endif /* KLOR_SHOW_LINK_STATUS */
 
 static void render(void) {
     if (!keymap_canvas) {
@@ -246,17 +362,17 @@ static void render(void) {
         }
 
         int r = keymap_pos_row[p];
-        int c = keymap_pos_col[p];
+        int lc = local_col(keymap_pos_col[p]);
 
-        /* The right half is not drawn, so its keys have nowhere to light up.
-         * Equivalent to filtering on ZMK_POSITION_STATE_CHANGE_SOURCE_LOCAL --
-         * this half owns exactly columns 0..5 -- but tied to what is on screen
-         * rather than to which board sent the event. */
-        if (c >= HALF_COLS) {
+        /* The other half's keys are not drawn, so they have nowhere to light
+         * up. Equivalent to filtering on ZMK_POSITION_STATE_CHANGE_SOURCE_LOCAL,
+         * since each board owns exactly its own six columns, but tied to what is
+         * on screen rather than to which board sent the event. */
+        if (lc < 0) {
             continue;
         }
 
-        int gx = ORIGIN_X + (2 * c) * CELL_W;
+        int gx = ORIGIN_X + (2 * lc) * CELL_W;
         int gy = ORIGIN_Y + r * CELL_H;
 
         lv_draw_rect_dsc_t sq;
@@ -271,7 +387,8 @@ static void render(void) {
         };
         lv_draw_rect(&l, &sq, &sq_area);
 
-        hl_text[p][0] = keymap_glyphs[layer][r][c];
+        /* Indexed by the absolute grid column, not the on-panel cell. */
+        hl_text[p][0] = keymap_glyphs[layer][r][keymap_pos_col[p]];
         hl_text[p][1] = '\0';
 
         lv_draw_label_dsc_t glyph;
@@ -285,7 +402,15 @@ static void render(void) {
     }
 
     lv_canvas_finish_layer(keymap_canvas, &l);
+
+#if KLOR_SHOW_LINK_STATUS
+    /* After the layer is dispatched, or the queued draw tasks would paint over
+     * these pixels. */
+    draw_link_mark();
+#endif
 }
+
+#if KLOR_HAS_LAYER_STATE
 
 static void set_layer_cb(struct layer_state state) {
     /* Same reasoning as set_key_cb: zmk_layer_state_changed fires on activate
@@ -305,6 +430,8 @@ static struct layer_state layer_get_state(const zmk_event_t *eh) {
 ZMK_DISPLAY_WIDGET_LISTENER(klor_layer_widget, struct layer_state, set_layer_cb,
                             layer_get_state)
 ZMK_SUBSCRIPTION(klor_layer_widget, zmk_layer_state_changed);
+
+#endif /* KLOR_HAS_LAYER_STATE */
 
 /*
  * The held set is accumulated HERE, in the state fetch, not in the display
@@ -336,12 +463,12 @@ static struct key_state key_get_state(const zmk_event_t *eh) {
     const struct zmk_position_state_changed *ev =
         eh ? as_zmk_position_state_changed(eh) : NULL;
 
-    /* Only positions this half draws are tracked. The central also sees the
-     * peripheral's keys, and those live in columns 6..11, which are not
-     * rendered -- letting them into the held set would mean a full repaint for
-     * every right-hand keystroke that changed nothing on screen. */
+    /* Only positions this board draws are tracked. The central also sees the
+     * peripheral's keys, which are not rendered here -- letting them into the
+     * held set would mean a full repaint for every keystroke on the other hand
+     * that changed nothing on screen. */
     if (ev && ev->position < KEYMAP_GLYPH_POSITIONS &&
-        keymap_pos_col[ev->position] < HALF_COLS) {
+        local_col(keymap_pos_col[ev->position]) >= 0) {
         if (ev->state) {
             held_acc |= 1ULL << ev->position;
         } else {
@@ -354,6 +481,36 @@ static struct key_state key_get_state(const zmk_event_t *eh) {
 
 ZMK_DISPLAY_WIDGET_LISTENER(klor_key_widget, struct key_state, set_key_cb, key_get_state)
 ZMK_SUBSCRIPTION(klor_key_widget, zmk_position_state_changed);
+
+#if KLOR_SHOW_LINK_STATUS
+
+struct link_state {
+    bool connected;
+};
+
+static void set_link_cb(struct link_state state) {
+    if (state.connected == link_connected) {
+        return;
+    }
+    link_connected = state.connected;
+    render();
+}
+
+static struct link_state link_get_state(const zmk_event_t *eh) {
+    /* eh is NULL on the initial call from klor_link_widget_init(); fall back to
+     * asking ZMK directly so a screen that starts up after the halves have
+     * already paired shows a tick rather than waiting for a disconnect. */
+    const struct zmk_split_peripheral_status_changed *ev =
+        eh ? as_zmk_split_peripheral_status_changed(eh) : NULL;
+
+    return (struct link_state){.connected = ev ? ev->connected
+                                               : zmk_split_bt_peripheral_is_connected()};
+}
+
+ZMK_DISPLAY_WIDGET_LISTENER(klor_link_widget, struct link_state, set_link_cb, link_get_state)
+ZMK_SUBSCRIPTION(klor_link_widget, zmk_split_peripheral_status_changed);
+
+#endif /* KLOR_SHOW_LINK_STATUS */
 
 lv_obj_t *zmk_display_status_screen(void) {
     lv_obj_t *screen = lv_obj_create(NULL);
@@ -389,11 +546,24 @@ lv_obj_t *zmk_display_status_screen(void) {
 
     /* Paint immediately: both events only fire on a change, so without this the
      * screen stays blank until the first keypress or layer switch. */
+#if KLOR_HAS_LAYER_STATE
     cur_layer = zmk_keymap_highest_layer_active();
+#else
+    /* The peripheral has no keymap to ask, so it shows BASE. */
+    cur_layer = 0;
+#endif
     cur_held = 0;
+#if KLOR_SHOW_LINK_STATUS
+    link_connected = zmk_split_bt_peripheral_is_connected();
+#endif
     render();
 
+#if KLOR_HAS_LAYER_STATE
     klor_layer_widget_init();
+#endif
     klor_key_widget_init();
+#if KLOR_SHOW_LINK_STATUS
+    klor_link_widget_init();
+#endif
     return screen;
 }

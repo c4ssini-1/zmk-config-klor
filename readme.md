@@ -142,9 +142,9 @@ real if you raise the numbers.
 
 ## DISPLAY
 
-The **left** OLED shows a miniature map of the active layer instead of ZMK's battery and
-profile widgets — there is no room for both on 128×64 at 1 bpp. Only the left half's keys
-are drawn, spread across the whole panel with a dot lattice between them:
+**Both** OLEDs show a miniature map of the keymap instead of ZMK's battery and profile
+widgets — there is no room for both on 128×64 at 1 bpp. Each half draws only its own keys,
+spread across the whole panel with a dot lattice between them:
 
 ```
  . Q . W . E . R . T
@@ -161,8 +161,15 @@ The glyphs are generated from the keymap by
 [`scripts/gen_keymap_glyphs.py`](scripts/gen_keymap_glyphs.py). **Re-run it after any keymap
 change** or the display will confidently show the wrong keys.
 
-The **right** OLED cannot do this. It is a BLE peripheral, never runs the keymap, and so has
-no idea which layer is active; ZMK applies the same restriction to its own layer widget.
+The **right** OLED also shows the state of the split link in the last cell of its bottom
+row, just after the apostrophe: a **tick** when it has found the left half, a **cross** when
+it has not. Handy for telling "the halves have not paired" apart from "a key is dead".
+
+**The right OLED does not follow the layer.** It is a BLE peripheral and never runs the
+keymap — ZMK does not even compile the keymap or the layer event into a peripheral build, so
+this is a link-time limit rather than something that can be switched on. The right half
+highlights its own keys correctly but always draws the BASE glyphs. Carrying the layer
+across the split link needs a custom channel and is not done yet.
 
 ## FLASHING
 
@@ -182,6 +189,11 @@ the normal firmware back.
 
 ## NOT DONE YET
 
+- **Layer sync to the right OLED.** The right half highlights its own keys but always draws
+  BASE, so it shows QWERTY while you are on `XTRA` — where the right hand is actually a
+  numpad. The split link has no layer channel, so this needs a custom one: a behaviour
+  fired from a layer-change listener on the central, carried by
+  `zmk_split_central_invoke_behavior()` and received by name on the peripheral.
 - **Repair the left controller.** Its **P0.09** pin is broken — that is matrix column 5,
   so `T`, `G`, `B` and the left encoder push are dead, along with the four LEDs under
   them. While the iron is out, check **VCC (pin 21)** and the **grounds (pins 3, 4, 23)**:

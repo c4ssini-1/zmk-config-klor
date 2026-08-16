@@ -77,10 +77,12 @@ shield *directory* name (`klor`), not the per-half shield names.
 
 **For anything that must differ per half, use `boards/shields/klor/klor_{left,right}.conf`.**
 Unlike the shield's `klor.conf`, these are *not* shadowed — the build log shows each half
-merging its own. `klor_left.conf` carries the custom status screen, which would break the
-right half if it were shared: `ZMK_DISPLAY_STATUS_SCREEN_CUSTOM` makes the firmware call
-`zmk_display_status_screen()`, and the only implementation is gated on
-`ZMK_SPLIT_ROLE_CENTRAL`, so the peripheral would fail to link. `klor_right.conf` is empty.
+merging its own. Both now carry the custom status screen, and they are kept as two files
+rather than folded into `config/klor.conf` because the two halves are not interchangeable:
+the central can show the active layer and the peripheral cannot, so the differences are
+expected to grow rather than shrink. Their LVGL settings are otherwise identical, and a
+change to one almost always belongs in the other — the memory pool, the font, the mono
+theme and the dedicated display work queue are all needed on both.
 
 Also inert: `klor_status_screen.c`, `battery_status.c`, `output_status.c`,
 `profile_status.c`, and `icons/`. They are guarded by `CONFIG_CUSTOM_WIDGET_*` symbols that
@@ -174,13 +176,35 @@ carries a hand-maintained ASCII diagram. Keep both in sync when bindings change.
 ## The OLED keymap display
 
 [src/klor_status_screen.c](src/klor_status_screen.c) replaces ZMK's built-in status screen
-on the **left half only** with a miniature map of the active layer. There is no room for
-both on 128×64 at 1 bpp, and the peripheral cannot show a layer at all — ZMK encodes that
-itself: `ZMK_WIDGET_LAYER_STATUS depends on !ZMK_SPLIT || ZMK_SPLIT_ROLE_CENTRAL`.
+on **both halves** with a miniature map of the keymap. There is no room for both a keymap
+and status widgets on 128×64 at 1 bpp.
 
-Only **this half's** keys are drawn — grid columns 0–5. The full 44-key grid fitted, but it
-read as a dense block and half of it was under the other hand. Pressed keys are shown
-**inverted**: a white square with the glyph repainted in black.
+Each board draws only **its own** keys — the left grid columns 0–5, the right 6–11, selected
+by `COL_BASE` off `CONFIG_SHIELD_KLOR_LEFT`. The full 44-key grid fitted, but it read as a
+dense block and half of it was under the other hand. Pressed keys are shown **inverted**: a
+white square with the glyph repainted in black. Highlighting needs nothing from the split
+link — `zmk_position_state_changed` is raised locally by each board's own matrix scan.
+
+- **The right half shows a split-link tick or cross** in the last cell of its bottom row,
+  from `zmk_split_peripheral_status_changed` plus `zmk_split_bt_peripheral_is_connected()`
+  for the state at boot. Peripheral-only, and necessarily so: ZMK raises that event in
+  `peripheral.c`, and `bluetooth/peripheral.c` is compiled only when *not* central. That
+  cell is empty by luck of the matrix — the transform puts no key at row 3, column 11 — not
+  by reservation, so adding a key there would collide with the mark. `unscii_8` is 7-bit
+  ASCII with neither glyph, so both marks are 7×7 pixel bitmaps painted with
+  `lv_canvas_set_px` *after* `lv_canvas_finish_layer`; doing it before would let the queued
+  draw tasks paint over them. For indexed formats that call takes the palette index straight
+  from `color.blue` rather than luminance, which happens to give the same black/white
+  polarity as the draw path.
+- **The layer is central-only, and that is a link-time fact, not a policy.** ZMK compiles
+  neither `src/keymap.c` nor `src/events/layer_state_changed.c` into a non-central build
+  (see the `if ((NOT CONFIG_ZMK_SPLIT) OR CONFIG_ZMK_SPLIT_ROLE_CENTRAL)` block in
+  `app/CMakeLists.txt`). So on the peripheral `zmk_keymap_highest_layer_active()` and a
+  subscription to the layer event do not return nothing — they **fail to link**. Everything
+  layer-related sits behind `KLOR_HAS_LAYER_STATE`, and the right half draws BASE. Carrying
+  the layer across would mean a custom channel; the only central→peripheral hooks that exist
+  are `RUN_BEHAVIOR` (reachable via `zmk_split_central_invoke_behavior()`), HID indicators
+  and physical-layout selection.
 
 Implementation notes worth keeping:
 
