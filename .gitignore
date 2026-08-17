@@ -9,3 +9,7 @@ Firmware/
 .env.*
 *.token
 gh-token
+
+# Python bytecode from the generators in scripts/
+__pycache__/
+*.pyc

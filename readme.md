@@ -12,6 +12,15 @@ Hardware files and build guides: [GEIGEIGEIST/KLOR](https://github.com/GEIGEIGEI
 This fork is set up for a **polydactyl layout, BLE build, two nice!nano v2 controllers,
 OLEDs on both halves**, with a QWERTY keymap.
 
+Beyond repairing the upstream config for current ZMK, it adds four things mainline ZMK does
+not do:
+
+- **Both OLEDs draw the live keymap**, each its own half, inverting the key you press and
+  following the active layer.
+- **Per-key reactive underglow** — white at 10%, the LED under a pressed key at 60%.
+- **A battery bar** across the top of each screen, blinking while charging.
+- **An offline copy of the keymap guide on the keyboard itself**, as a read-only USB drive.
+
 ## WHAT CHANGED FROM UPSTREAM
 
 Upstream was last updated in June 2024 while tracking ZMK `main` unpinned, so it no
@@ -33,6 +42,9 @@ longer built. Fixed here:
 | LED strip moved from `&spi1` to `&spi3` | **Silent failure.** Builds fine, then every transfer times out with `-ETIMEDOUT`. On the nRF52840, SPIM0/1/2 share a hardware instance with TWIM/TWIS/SPIS; SPIM3 is standalone. All 27 nice!nano shields in the ZMK tree use `spi3` |
 | `CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER` forced to `n` | It gates the external power rail that the **OLEDs** share with the LED strip. ZMK cuts that rail when underglow goes idle and never restores it, so both screens die and stay dead |
 | ZMK's underglow replaced with a custom module | Per-key reactive lighting, which mainline ZMK cannot do — see below |
+| Custom OLED firmware on both halves | ZMK's status widgets swapped for a live keymap display — see DISPLAY |
+| The active layer pushed across the split link | A peripheral cannot read the keymap, so the right screen would otherwise never leave BASE |
+| A read-only USB drive holding the guide | The keyboard carries its own documentation — see THE GUIDE ON THE KEYBOARD |
 
 ## WHAT THE KLOR HARDWARE CAN AND CANNOT DO UNDER ZMK
 
@@ -248,3 +260,8 @@ the normal firmware back.
 - **ZMK Studio** (live keymap editing over USB, no reflash) needs a `zmk,physical-layout`
   node describing the polydactyl key positions. The shield still uses the older
   `zmk,matrix_transform`, which ZMK continues to honour.
+- **Home-automation controls on `FN`.** Its right hand is deliberately `&none` and empty,
+  waiting for them.
+- **A real "charging finished" signal.** The nice!nano v2 gives the MCU no charge status, so
+  the battery bar infers it from the reported level and stops blinking early. Only different
+  hardware fixes this.
