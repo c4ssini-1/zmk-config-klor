@@ -14,10 +14,30 @@
  * its layout is verified by fsck.fat and mtools before it is ever compiled in,
  * rather than debugged on a microcontroller that cannot be inspected.
  *
- * READ-ONLY IN THREE PLACES, deliberately. status() reports
- * DISK_STATUS_WR_PROTECT so the host is told up front and mounts it read-only;
- * write() refuses regardless; and the file's directory entry carries the
- * read-only attribute. The contents can only change by reflashing.
+ * READ-ONLY IN THREE PLACES: status() reports DISK_STATUS_WR_PROTECT, write()
+ * refuses outright, and the file's directory entry carries the read-only
+ * attribute. The contents can only change by reflashing.
+ *
+ * THE HOST STILL MOUNTS IT READ-WRITE, and that cannot be fixed from here.
+ * What tells an operating system a medium is write-protected is the WP bit --
+ * the top bit of the device-specific parameter, byte 2 of the MODE SENSE(6)
+ * parameter header. Zephyr's msc.c answers that command from a hardcoded
+ * constant:
+ *
+ *     static bool modeSense6(void) {
+ *         uint8_t sense6[] = { 0x03, 0x00, 0x00, 0x00 };
+ *
+ * Byte 2 is zero and nothing consults disk_access_status() to build it, so the
+ * WP bit is never set no matter what this driver reports. Fixing it means
+ * patching Zephyr, which this config deliberately does not do -- ZMK is pinned
+ * by SHA precisely so it is not carrying local patches.
+ *
+ * The practical effect is cosmetic but confusing: a file manager will let you
+ * appear to create or delete files. Those writes are refused by the device and
+ * live only in the host's page cache, so they vanish on unmount. Verified on
+ * hardware -- a file created on the mounted volume was gone after a remount and
+ * KEYMAP.HTM was byte-identical to the repo copy. The data really is immutable;
+ * the host is simply not warned in advance.
  *
  * LEFT HALF ONLY, and not by preference. ZMK_USB is declared
  * "depends on (!ZMK_SPLIT || ZMK_SPLIT_ROLE_CENTRAL)", so the peripheral cannot

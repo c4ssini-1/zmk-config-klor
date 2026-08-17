@@ -199,6 +199,29 @@ downward channel that carries a value.
 It is best-effort: the write is unacknowledged and nothing resyncs on reconnect, so a dropped
 packet leaves the right screen stale until the next layer key press corrects it.
 
+## THE GUIDE ON THE KEYBOARD
+
+Plug the **left** half into a computer and a small read-only volume called
+`KLOR GUIDE` appears alongside the keyboard, holding `KEYMAP.HTM` — an offline
+copy of the keymap guide. Open it in a browser: no network, no software to
+install. Anyone who borrows the keyboard finds the documentation on it.
+
+The file is built into the firmware from [`docs/klor-keymap.html`](docs/klor-keymap.html)
+by [`scripts/gen_usb_disk.py`](scripts/gen_usb_disk.py), which assembles a complete
+FAT12 image and emits it as a C array. **Re-run it after editing the guide.** The
+device serves those bytes verbatim and never parses a filesystem — the host does
+that — which is why no FAT support is compiled in.
+
+The contents can only change by reflashing. Note though that **the host still
+mounts the volume read-write**: Zephyr's mass-storage class answers SCSI
+`MODE SENSE` from a hardcoded constant with the write-protect bit clear, so it
+never tells the operating system the medium is protected. Writes are refused by
+the device and vanish on unmount, but a file manager will let you appear to make
+them. Fixing that would mean patching Zephyr.
+
+Left half only, unavoidably: ZMK's USB support depends on being the central
+half, and Bluetooth carries no file transfer at all.
+
 ## FLASHING
 
 CI is the only way to build this — there is no local toolchain. `origin` is this fork;
