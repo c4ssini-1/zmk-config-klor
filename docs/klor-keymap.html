@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KLOR polydactyl — keymap</title>
+<style>
+:root{
+  /* Frosted acrylic over a bare PCB, red legends, red anodised knobs --
+     the palette is taken from the physical board rather than invented. */
+  --bg:#D9DCE1;
+  --board-a:#C9CFD6; --board-b:#E6E9ED;
+  --surface:#EEF0F3; --surface-2:#E2E6EB; --plate:#D4D9E0;
+
+  /* Translucent, not white: the caps let the plate through. */
+  --cap:rgba(255,255,255,.50);
+  --cap-edge:rgba(255,255,255,.80);
+
+  --red:#D81E2C; --red-deep:#9E101B; --red-soft:rgba(216,30,44,.13);
+  --legend:#C4111F;
+
+  --ink:#1B222B; --ink-2:#59616E; --ink-3:#8A929F;
+  --rule:#C4CAD2; --rule-2:#DCE1E7;
+
+  /* One accent, because the board has one legend colour. Only ever one layer
+     is on screen, so four hues were decoration rather than information. */
+  --c-base:var(--red); --c-xtra:var(--red); --c-fn:var(--red); --c-sys:var(--red);
+  --danger:#7C0A14;
+  --cap-shadow:inset 0 1px 0 rgba(255,255,255,.95), 0 2px 5px rgba(27,34,43,.16);
+  --held-ink:#FFF4F5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14161A;
+    --board-a:#1B1F25; --board-b:#0E1013;
+    --surface:#181B20; --surface-2:#222831; --plate:#101317;
+
+    --cap:rgba(226,232,240,.11);
+    --cap-edge:rgba(226,232,240,.26);
+
+    --red:#FF4B57; --red-deep:#C81E2A; --red-soft:rgba(255,75,87,.16);
+    --legend:#FF5A64;
+
+    --ink:#E6EAF0; --ink-2:#A2ABB8; --ink-3:#6E7885;
+    --rule:#2B323B; --rule-2:#1F242B;
+
+    --c-base:var(--red); --c-xtra:var(--red); --c-fn:var(--red); --c-sys:var(--red);
+    --danger:#FF8A93;
+    --cap-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 2px 6px rgba(0,0,0,.55);
+    --held-ink:#14161A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14161A;
+  --board-a:#1B1F25; --board-b:#0E1013;
+  --surface:#181B20; --surface-2:#222831; --plate:#101317;
+
+  --cap:rgba(226,232,240,.11);
+  --cap-edge:rgba(226,232,240,.26);
+
+  --red:#FF4B57; --red-deep:#C81E2A; --red-soft:rgba(255,75,87,.16);
+  --legend:#FF5A64;
+
+  --ink:#E6EAF0; --ink-2:#A2ABB8; --ink-3:#6E7885;
+  --rule:#2B323B; --rule-2:#1F242B;
+
+  --c-base:var(--red); --c-xtra:var(--red); --c-fn:var(--red); --c-sys:var(--red);
+  --danger:#FF8A93;
+  --cap-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 2px 6px rgba(0,0,0,.55);
+  --held-ink:#14161A;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  font-size:15px; line-height:1.6;
+}
+.mono{font-family:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Mono",Menlo,Consolas,monospace}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+
+/* ---------- masthead ---------- */
+.mast{padding:44px 0 26px}
+.eyebrow{
+  font-family:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+}
+.eyebrow b{color:var(--ink-2);font-weight:500}
+h1{
+  font-family:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  font-size:clamp(28px,4.4vw,44px);line-height:1.04;letter-spacing:-.025em;
+  font-weight:650;margin:14px 0 0;text-wrap:balance;
+}
+.lede{max-width:64ch;color:var(--ink-2);margin:14px 0 0;font-size:16px}
+.specs{
+  display:flex;flex-wrap:wrap;gap:0 28px;margin-top:22px;
+  border-top:1px solid var(--rule);padding-top:14px;
+}
+.spec{display:flex;flex-direction:column;gap:1px;padding:4px 0}
+.spec dt{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
+.spec dd{margin:0;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--ink)}
+
+/* ---------- layer tabs ---------- */
+.tabbar{
+  position:sticky;top:0;z-index:30;background:var(--bg);
+  border-bottom:1px solid var(--rule);
+}
+.tabbar-inner{display:flex;align-items:flex-end;gap:2px;overflow-x:auto;scrollbar-width:thin}
+.tab{
+  appearance:none;background:none;border:0;cursor:pointer;
+  font-family:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  font-size:12.5px;letter-spacing:.09em;font-weight:600;
+  color:var(--ink-3);padding:15px 15px 12px;white-space:nowrap;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+}
+.tab:hover{color:var(--ink)}
+.tab .idx{font-size:10px;color:var(--ink-3);margin-right:7px;font-weight:400}
+.tab[aria-selected="true"]{color:var(--lc);border-bottom-color:var(--lc)}
+.tab[aria-selected="true"] .idx{color:var(--lc);opacity:.7}
+.tab[data-l="base"]{--lc:var(--c-base)} .tab[data-l="xtra"]{--lc:var(--c-xtra)}
+.tab[data-l="fn"]{--lc:var(--c-fn)} .tab[data-l="sys"]{--lc:var(--c-sys)}
+.tabbar .opts{margin-left:auto;display:flex;gap:16px;align-items:center;padding:0 4px 11px}
+.opt{
+  display:flex;gap:7px;align-items:center;cursor:pointer;
+  font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap;
+}
+.opt input{accent-color:var(--ink-2);width:13px;height:13px;margin:0;cursor:pointer}
+.opt:hover{color:var(--ink-2)}
+
+/* ---------- board ---------- */
+.stage{background:var(--surface);border-bottom:1px solid var(--rule)}
+.warnbar{
+  max-width:1000px;margin:0 auto;padding:11px 24px;font-size:12.5px;color:var(--ink-2);
+  border-bottom:1px dashed var(--rule);line-height:1.5;
+}
+.warnbar b{
+  color:var(--danger);font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;margin-right:8px;
+}
+.board-frame{overflow-x:auto;overflow-y:hidden;padding:30px 24px 22px;max-width:1000px;margin:0 auto}
+.board{position:relative;width:804px;height:310px;flex:none}
+.board[data-l="base"]{--layer:var(--c-base)} .board[data-l="xtra"]{--layer:var(--c-xtra)}
+.board[data-l="fn"]{--layer:var(--c-fn)} .board[data-l="sys"]{--layer:var(--c-sys)}
+
+.key{
+  position:absolute;width:52px;height:52px;padding:3px;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  background:var(--cap);border:1px solid var(--cap-edge);border-radius:7px;
+  -webkit-backdrop-filter:blur(7px) saturate(1.15);
+  backdrop-filter:blur(7px) saturate(1.15);
+  box-shadow:var(--cap-shadow);color:var(--legend);
+  font-family:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  font-weight:650;line-height:1.14;word-break:break-word;hyphens:none;
+  cursor:pointer;transition:transform .12s ease, border-color .12s ease, background .12s ease;
+}
+.key:hover{transform:translateY(-1px);border-color:var(--layer)}
+.key:focus-visible{outline:2px solid var(--layer);outline-offset:2px}
+.key .num{
+  position:absolute;top:2px;left:4px;font-size:8px;font-weight:400;
+  color:var(--ink-3);letter-spacing:0;font-variant-numeric:tabular-nums;opacity:.85;
+}
+.board.hide-nums .key .num{display:none}
+.key .lbl{display:block;max-width:100%}
+.fs-1 .lbl{font-size:15.5px} .fs-2 .lbl{font-size:12.5px}
+.fs-3 .lbl{font-size:10px}   .fs-4 .lbl{font-size:8.5px}
+
+.key.trans{
+  background:transparent;border-style:dashed;border-color:var(--rule);box-shadow:none;
+  -webkit-backdrop-filter:none;backdrop-filter:none;
+}
+.key.trans .lbl{color:var(--ink-3);opacity:.5;font-weight:400}
+.key.trans .num{opacity:.5}
+.board.no-fall .key.trans .lbl{visibility:hidden}
+
+.key.held, .enc.held{background:var(--layer);border-color:var(--layer);color:var(--held-ink);box-shadow:none}
+.key.held .num, .enc.held .num{color:var(--held-ink);opacity:.65}
+.key.held .lbl, .enc.held .lbl{font-weight:650}
+.enc.held .rot{color:var(--held-ink);opacity:.6}
+.key.mo, .enc.mo{border-color:var(--layer);border-width:1.5px;color:var(--layer)}
+.key.mo .lbl, .enc.mo .lbl{font-weight:700;letter-spacing:.04em}
+.key.danger{
+  border-color:var(--danger);color:var(--danger);
+  background:linear-gradient(var(--red-soft), var(--red-soft)), var(--cap);
+}
+.key.sel{border-color:var(--layer);border-width:2px;box-shadow:0 0 0 3px color-mix(in srgb, var(--layer) 22%, transparent)}
+
+.enc{
+  position:absolute;width:60px;height:60px;border-radius:50%;
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255,255,255,.42), transparent 52%),
+    linear-gradient(155deg, var(--red), var(--red-deep));
+  border:1px solid var(--red-deep);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.30), 0 3px 8px rgba(27,34,43,.30);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  cursor:pointer;color:#FFF1F2;
+  font-family:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  transition:transform .12s ease, border-color .12s ease;
+}
+.enc:hover{transform:translateY(-1px);border-color:var(--layer)}
+.enc:focus-visible{outline:2px solid var(--layer);outline-offset:2px}
+.enc .num{position:static;font-size:8px;color:rgba(255,241,242,.72);font-variant-numeric:tabular-nums}
+.board.hide-nums .enc .num{display:none}
+.enc .lbl{font-size:10px;font-weight:600}
+.enc .rot{font-size:9px;color:rgba(255,241,242,.66);letter-spacing:.18em;line-height:1}
+.enc.sel{border-color:var(--layer);border-width:2px;box-shadow:0 0 0 3px color-mix(in srgb, var(--layer) 22%, transparent)}
+
+.combo{
+  position:absolute;border:1.5px dashed var(--layer);border-radius:11px;
+  pointer-events:none;opacity:.75;
+}
+.combo-tag{
+  position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+  background:var(--surface);color:var(--layer);padding:0 6px;white-space:nowrap;
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:8.5px;font-weight:700;letter-spacing:.13em;
+}
+.halflabel{
+  position:absolute;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);opacity:.7;
+}
+
+.legend{
+  max-width:1000px;margin:0 auto;padding:0 24px 24px;
+  display:flex;flex-wrap:wrap;gap:8px 22px;font-size:11.5px;color:var(--ink-3);
+}
+.legend span{display:flex;align-items:center;gap:7px}
+.sw{width:15px;height:15px;border-radius:4px;border:1px solid var(--rule);background:var(--cap);flex:none}
+.sw.t{border-style:dashed;border-color:var(--rule);background:transparent}
+.sw.h{background:var(--layer,var(--c-base));border-color:var(--layer,var(--c-base))}
+.sw.d{border-color:var(--danger)}
+.sw.m{border-color:var(--layer,var(--c-base));border-width:1.5px}
+
+/* ---------- detail + inspector ---------- */
+.duo{display:grid;grid-template-columns:1.35fr 1fr;gap:0;border-bottom:1px solid var(--rule)}
+.duo > *{padding:30px 0}
+.duo > *:first-child{padding-right:38px;border-right:1px solid var(--rule)}
+.duo > *:last-child{padding-left:38px}
+.panel-head{
+  display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px;
+}
+.panel-head h2{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:22px;font-weight:650;letter-spacing:-.01em;margin:0;color:var(--layer)
+}
+#detail{--layer:var(--c-base)}
+#detail[data-l="xtra"]{--layer:var(--c-xtra)} #detail[data-l="fn"]{--layer:var(--c-fn)}
+#detail[data-l="sys"]{--layer:var(--c-sys)} #detail[data-l="base"]{--layer:var(--c-base)}
+.reach{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:11px;letter-spacing:.05em;color:var(--ink-2);
+  border:1px solid var(--rule);border-radius:4px;padding:3px 8px;
+}
+#detail p{margin:12px 0 0;color:var(--ink-2);max-width:60ch}
+#detail p strong{color:var(--ink);font-weight:600}
+.kv{margin:20px 0 0;border-top:1px solid var(--rule-2)}
+.kv div{display:flex;gap:16px;padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:13px}
+.kv dt{flex:0 0 108px;color:var(--ink-3);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding-top:2px}
+.kv dd{margin:0;color:var(--ink)}
+.kv code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;color:var(--ink-2)}
+
+.insp-title{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0 0 14px;
+}
+#insp-pos{font-size:19px;font-weight:650;letter-spacing:-.01em;color:var(--ink);
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+#insp-where{font-size:12px;color:var(--ink-3);margin:2px 0 16px}
+#insp-empty{color:var(--ink-3);font-size:13.5px;max-width:34ch}
+table.bind{width:100%;border-collapse:collapse;font-size:12.5px}
+table.bind th{
+  text-align:left;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;padding:0 0 7px;border-bottom:1px solid var(--rule)
+}
+table.bind td{padding:7px 0;border-bottom:1px solid var(--rule-2);vertical-align:top}
+table.bind td:first-child{
+  width:56px;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:11px;font-weight:650;letter-spacing:.06em;
+}
+table.bind td:last-child{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;color:var(--ink-2);
+  word-break:break-word;
+}
+tr[data-l="base"] td:first-child{color:var(--c-base)} tr[data-l="xtra"] td:first-child{color:var(--c-xtra)}
+tr[data-l="fn"] td:first-child{color:var(--c-fn)}  tr[data-l="sys"] td:first-child{color:var(--c-sys)}
+tr.active td{background:var(--surface-2)}
+tr.dim td:last-child{opacity:.45}
+.insp-note{margin:14px 0 0;font-size:12px;color:var(--ink-3);max-width:38ch}
+
+/* ---------- reference ---------- */
+.ref{padding:40px 0 60px}
+.ref h2{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
+  margin:0 0 22px;font-weight:500;
+}
+.refgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px 34px}
+.refgrid section{border-top:1px solid var(--ink-3);padding:14px 0 22px}
+.refgrid h3{
+  font-size:13.5px;margin:0 0 8px;font-weight:650;letter-spacing:-.005em;
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+.refgrid p{margin:0 0 9px;font-size:13px;color:var(--ink-2);line-height:1.55}
+.refgrid p:last-child{margin-bottom:0}
+.refgrid code, .inline-code{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;
+  background:var(--surface-2);padding:1px 4px;border-radius:3px;color:var(--ink);
+}
+.posmap{
+  margin:26px 0 0;background:var(--surface);border:1px solid var(--rule);border-radius:6px;
+  padding:20px 22px;overflow-x:auto;
+}
+.posmap pre{
+  margin:0;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:12px;line-height:1.85;color:var(--ink-2);font-variant-numeric:tabular-nums;
+}
+.posmap .cap{
+  font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);
+  margin:0 0 12px;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+footer{border-top:1px solid var(--rule);padding:20px 0 44px;font-size:12px;color:var(--ink-3)}
+footer code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+
+@media (max-width:880px){
+  .board-frame{padding:22px 16px 14px}
+  .board{transform:scale(.62);transform-origin:top left;margin-bottom:-118px;margin-right:-306px}
+  .duo{grid-template-columns:1fr}
+  .duo > *:first-child{border-right:0;border-bottom:1px solid var(--rule);padding-right:0;padding-bottom:26px}
+  .duo > *:last-child{padding-left:0}
+  .refgrid{grid-template-columns:1fr}
+  .tabbar .opts{width:100%;order:3;margin-left:0;padding-bottom:12px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important}
+}
+</style>
+</head>
+<body>
+
+
+<div class="wrap mast">
+  <div class="eyebrow"><span>ZMK user config</span>·<b class="mono">config/klor.keymap</b>·<span>as committed</span></div>
+  <h1>KLOR polydactyl — working keymap</h1>
+  <p class="lede">Four layers over 44 positions. NAV has been removed and NUM is now XTRA —
+  a scratch layer for whatever gets reached for often. Layers chain rather than combine:
+  BASE into XTRA into FN into SYS, one key deeper each time.</p>
+  <dl class="specs">
+    <div class="spec"><dt>Positions</dt><dd>44 &nbsp;<span style="color:var(--ink-3)">(42 keys + 2 encoder pushes)</span></dd></div>
+    <div class="spec"><dt>Matrix</dt><dd>12 × 4</dd></div>
+    <div class="spec"><dt>Layers</dt><dd>4</dd></div>
+    <div class="spec"><dt>Combos</dt><dd>1</dd></div>
+    <div class="spec"><dt>Encoders</dt><dd>2</dd></div>
+  </dl>
+</div>
+
+<div class="tabbar">
+  <div class="wrap tabbar-inner" role="tablist" aria-label="Keymap layers">
+    <button class="tab" role="tab" data-l="base" aria-selected="true"><span class="idx">0</span>BASE</button>
+    <button class="tab" role="tab" data-l="xtra" aria-selected="false"><span class="idx">1</span>XTRA</button>
+    <button class="tab" role="tab" data-l="fn"   aria-selected="false"><span class="idx">2</span>FN</button>
+    <button class="tab" role="tab" data-l="sys"  aria-selected="false"><span class="idx">3</span>SYS</button>
+    <div class="opts">
+      <label class="opt"><input type="checkbox" id="t-nums" checked>Positions</label>
+      <label class="opt"><input type="checkbox" id="t-fall" checked>Fall-through</label>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+<div class="warnbar"><b>Layers chain</b> — BASE → XTRA (hold 38) → FN (add 41) → SYS (add 22). Only one momentary
+    layer key sits on BASE, so nothing reaches FN or SYS without going through XTRA.</div>
+  <div class="board-frame">
+    <div class="board" id="board" data-l="base"></div>
+  </div>
+  <div class="legend">
+    <span><i class="sw"></i>Bound on this layer</span>
+    <span><i class="sw t"></i><code class="inline-code">&amp;trans</code> — falls through to the layer below</span>
+    <span><b style="font-family:ui-monospace,Menlo,monospace">—</b><code class="inline-code">&amp;none</code> — bound to nothing, does not fall through</span>
+    <span><i class="sw h"></i>Held to reach this layer</span>
+    <span><i class="sw m"></i>Momentary layer key</span>
+    <span><i class="sw d"></i>Destructive — reflashes or resets</span>
+  </div>
+</div>
+
+<div class="wrap duo">
+  <div id="detail" data-l="base">
+    <div class="panel-head">
+      <h2 id="d-name">BASE</h2>
+      <span class="reach" id="d-reach">default layer</span>
+    </div>
+    <p id="d-body"></p>
+    <dl class="kv" id="d-kv"></dl>
+  </div>
+  <div id="inspector">
+    <p class="insp-title">Key inspector</p>
+    <div id="insp-empty">Click any key or encoder to see what it does on all four layers — and the exact binding to edit.</div>
+    <div id="insp-body" hidden>
+      <div id="insp-pos"></div>
+      <div id="insp-where"></div>
+      <table class="bind">
+        <thead><tr><th>Layer</th><th>Binding</th></tr></thead>
+        <tbody id="insp-rows"></tbody>
+      </table>
+      <p class="insp-note" id="insp-note"></p>
+    </div>
+  </div>
+</div>
+
+<div class="wrap ref">
+  <h2>Before you change anything</h2>
+  <div class="refgrid">
+    <section>
+      <h3>Edit the right file</h3>
+      <p><code>config/klor.keymap</code> is the live one. The identically-named copy under
+      <code>boards/shields/klor/</code> is shadowed by it and does nothing — editing that
+      one produces a build with no visible change.</p>
+    </section>
+    <section>
+      <h3>The count that must hold</h3>
+      <p>Every layer needs exactly <strong>44 bindings</strong> and <strong>2 sensor-bindings</strong>,
+      left encoder first. Layer indices are positional too: deleting a layer renumbers every
+      layer below it, so the <code>#define</code> block and the node order must stay in sync.</p>
+    </section>
+    <section>
+      <h3>No local build</h3>
+      <p>There is no west, docker, or pip here — CI is the only compiler. Push, open the Actions
+      tab, download the <code>firmware</code> artifact, double-tap reset on each half and drag the
+      matching <code>.uf2</code> onto the drive.</p>
+    </section>
+    <section>
+      <h3>Two hold-taps, one in use</h3>
+      <p><code>spc</code> drives position 39 — tap Space, hold Super. It is not the built-in
+      <code>&amp;mt</code>, whose <code>hold-preferred</code> flavour resolves to the hold the moment
+      another key is pressed inside the tapping term, turning "the quick" into Super+q.
+      <code>tap-preferred</code> plus <code>require-prior-idle-ms</code> is what lets a hold-tap
+      survive on the most-pressed key on the board.</p>
+      <p><code>hm</code> is defined and deliberately unused. Swap <code>&amp;kp F</code> for
+      <code>&amp;hm LSHFT F</code> on any alpha to get home-row mods.</p>
+    </section>
+    <section>
+      <h3>One combo</h3>
+      <p><strong>Q + W</strong> (positions 0 and 1) sends Tab, 50 ms window; Escape has its own
+      key at 10.</p>
+      <p>There was a <strong>38 + 39</strong> Super combo. It was removed: a combo needs both keys
+      inside 50 ms <em>every</em> time, which is poor for a modifier you hold through a chord, and
+      it swallowed both presses so XTRA never engaged. Super is a hold-tap on 39 now.</p>
+    </section>
+    <section>
+      <h3>What ZMK will not do</h3>
+      <p>No speaker and no haptic — those are QMK-only on this PCB.</p>
+      <p><em>Mainline</em> ZMK has only whole-strip underglow, so this config replaces it with a
+      custom module: white at 10%, and the LED under a pressed key rises to 60%. That makes
+      every <code>&amp;rgb_ug</code> binding <strong>inert</strong> — they still build, because ZMK
+      declares the behaviour unconditionally and gates only the driver, which is how twelve dead
+      keys sat on SYS unnoticed. They have been replaced by <code>&amp;rgb</code> on position 5,
+      an on/off switch that reaches both halves and is remembered across reboots.</p>
+      <p>Both OLEDs draw their own half of this keymap, invert the key you press, and follow the
+      active layer. The right one only manages the last of those because the layer is
+      <em>pushed</em> to it: a peripheral never runs the keymap, so the central sends the layer
+      index across the split link in a behaviour parameter.</p>
+    </section>
+  </div>
+
+  <div class="posmap">
+    <p class="cap">Position map — the order bindings are listed in</p>
+    <pre>      0   1   2   3   4                     5   6   7   8   9
+ 10  11  12  13  14  15                    16  17  18  19  20  21
+ 22  23  24  25  26  27   (28)      (29)   30  31  32  33  34  35
+                 36  37  38  39      40  41  42  43</pre>
+  </div>
+</div>
+
+<div class="wrap"><footer>
+  Rendered from <code>config/klor.keymap</code> · ZMK pinned at <code>6e2ef41</code> ·
+  board target <code>nice_nano//zmk</code>
+</footer></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---- physical layout ------------------------------------------------ */
+var U = 56, TOP = 28, RX0 = 472;
+var STAG   = [18,18,6,0,7,16, 16,7,0,6,18,18];
+var FINGER = ["outer","pinky","ring","middle","index","inner",
+              "inner","index","middle","ring","pinky","outer"];
+var ARC = [0,6,14,26], SHIFT = [16,16,14,10];
+
+function colX(c){ return c < 6 ? c*U : RX0 + (c-6)*U; }
+
+var slots = [], p = 0;
+[1,2,3,4,5,6,7,8,9,10].forEach(function(c){ slots.push({p:p++, c:c, r:0, t:"key"}); });
+[0,1,2,3,4,5,6,7,8,9,10,11].forEach(function(c){ slots.push({p:p++, c:c, r:1, t:"key"}); });
+[0,1,2,3,4,5].forEach(function(c){ slots.push({p:p++, c:c, r:2, t:"key"}); });
+slots.push({p:p++, t:"enc", side:"L"});
+slots.push({p:p++, t:"enc", side:"R"});
+[6,7,8,9,10,11].forEach(function(c){ slots.push({p:p++, c:c, r:2, t:"key"}); });
+[1,2,3,4].forEach(function(c,i){ slots.push({p:p++, c:c, r:3, t:"thumb", i:i}); });
+[7,8,9,10].forEach(function(c,i){ slots.push({p:p++, c:c, r:3, t:"thumb", i:i}); });
+
+slots.forEach(function(s){
+  if (s.t === "enc"){
+    s.x = s.side === "L" ? 336 : 408; s.y = 152; return;
+  }
+  if (s.t === "thumb"){
+    var k = s.c < 6 ? s.i : 3 - s.i;
+    s.x = colX(s.c) + (s.c < 6 ? SHIFT[k] : -SHIFT[k]);
+    s.y = 224 + ARC[k];
+    return;
+  }
+  s.x = colX(s.c);
+  s.y = s.r*U + STAG[s.c] + TOP;
+});
+
+function where(s){
+  if (s.t === "enc") return "Rotary encoder · " + (s.side==="L"?"left":"right") + " half · push switch";
+  var half = s.c < 6 ? "left" : "right";
+  if (s.t === "thumb"){
+    var nth = s.c < 6 ? s.i + 1 : 4 - s.i;
+    var name = nth === 4 ? "innermost" : nth === 1 ? "outermost" : "thumb " + nth;
+    return "Thumb cluster · " + half + " half · " + name;
+  }
+  return "Row " + (s.r+1) + " · " + half + " half · " + FINGER[s.c] + " column";
+}
+
+/* ---- bindings -------------------------------------------------------- */
+var t = ["", "&trans", "trans"];
+
+var BASE = [
+ ["Q","&kp Q"],["W","&kp W"],["E","&kp E"],["R","&kp R"],["T","&kp T"],
+ ["Y","&kp Y"],["U","&kp U"],["I","&kp I"],["O","&kp O"],["P","&kp P"],
+ ["Esc","&kp ESC"],["A","&kp A"],["S","&kp S"],["D","&kp D"],["F","&kp F"],["G","&kp G"],
+ ["H","&kp H"],["J","&kp J"],["K","&kp K"],["L","&kp L"],["]","&kp RBKT"],["Bksp","&kp BSPC"],
+ ["Shift","&kp LSHFT"],["Z","&kp Z"],["X","&kp X"],["C","&kp C"],["V","&kp V"],["B","&kp B"],
+ ["Mute","&kp C_MUTE"],["Play","&kp C_PP"],
+ ["N","&kp N"],["M","&kp M"],["[","&kp LBKT"],[";","&kp SEMI"],["\\","&kp BSLH"],["Enter","&kp RET"],
+ ["Ctrl","&kp LCTRL"],["Alt","&kp LALT"],["XTRA","&mo XTRA","mo"],["Space Super","&spc LGUI SPACE"],
+ [",","&kp COMMA"],[".","&kp DOT"],["/","&kp FSLH"],["'","&kp SQT"]
+];
+
+var XTRA = [
+ ["`","&kp GRAVE"],["~","&kp TILDE"],["!","&kp EXCL"],["@","&kp AT"],["#","&kp HASH"],
+ ["1","&kp N1"],["2","&kp N2"],["3","&kp N3"],["0","&kp N0"],["+","&kp PLUS"],
+ t,["$","&kp DLLR"],["%","&kp PRCNT"],["^","&kp CARET"],["&","&kp AMPS"],["_","&kp UNDER"],
+ ["4","&kp N4"],["5","&kp N5"],["6","&kp N6"],["-","&kp MINUS"],["*","&kp ASTRK"],t,
+ t,["(","&kp LPAR"],[")","&kp RPAR"],t,t,t,
+ t,t,
+ ["7","&kp N7"],["8","&kp N8"],["9","&kp N9"],["/","&kp FSLH"],["=","&kp EQUAL"],t,
+ t,t,t,["Super","&kp LGUI"],t,["FN","&mo FN","mo"],t,t
+];
+
+var FN = [
+ ["F2","&kp F2"],["F3","&kp F3"],["F4","&kp F4"],["F5","&kp F5"],["F6","&kp F6"],["F7","&kp F7"],["F8","&kp F8"],["F9","&kp F9"],["F10","&kp F10"],["F11","&kp F11"],
+ ["F1","&kp F1"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["F12","&kp F12"],
+ ["SYS","&mo SYS","mo"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],
+ t,t,t,t,["\u2014","&none"],t,["\u2014","&none"],["\u2014","&none"]
+];
+
+var SYS = [
+ ["BT 0","&bt BT_SEL 0"],["BT 1","&bt BT_SEL 1"],["BT 2","&bt BT_SEL 2"],["BT 3","&bt BT_SEL 3"],["BT 4","&bt BT_SEL 4"],["RGB","&rgb KLOR_RGB_TOG"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],
+ t,["BT Clr","&bt BT_CLR"],["BT Prev","&bt BT_PRV"],["BT Next","&bt BT_NXT"],["BT Clr All","&bt BT_CLR_ALL","danger"],t,["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],["\u2014","&none"],t,
+ t,["USB","&out OUT_USB"],["BLE","&out OUT_BLE"],["Out Tog","&out OUT_TOG"],["Reset","&sys_reset","danger"],["Bootldr","&bootloader","danger"],t,t,["Bootldr","&bootloader","danger"],["Reset","&sys_reset","danger"],["Ext Pwr","&ext_power EP_TOG"],["\u2014","&none"],["\u2014","&none"],t,
+ t,t,t,t,t,t,t,t
+];
+
+var VOL = ["Volume up / down","&inc_dec_kp C_VOL_UP C_VOL_DN"];
+var BRI = ["Brightness up / down","&inc_dec_kp C_BRI_UP C_BRI_DN"];
+var PAGE = ["Page up / down","&inc_dec_kp PG_UP PG_DN"];
+
+var LAYERS = {
+  base:{
+    key:"base", name:"BASE", sub:"QWERTY", reach:"default layer", held:[],
+    body:"Escape on 10, Enter on 35, and the bracket cluster filling the right hand\u2019s bottom row. The right thumbs carry the punctuation run <strong>, . / \'</strong>, and every shifted glyph comes free from the host \u2014 no mod-morph behaviors needed. One Shift, at 22. Super is <strong>position 39 held</strong> \u2014 a hold-tap that taps Space and holds Super, so the alphas stay live underneath and <strong>Super+T</strong> works.",
+    enc:[VOL, PAGE],
+    kv:[["Escape","Position 10 \u2014 dedicated key, left outer column"],
+        ["Tab","Q + W combo, 50 ms window \u2014 the only combo"],
+        ["Left thumbs","Ctrl \u00b7 Alt \u00b7 XTRA \u00b7 Space/Super"],
+        ["Right thumbs",", \u00b7 . \u00b7 / \u00b7 \'"],
+        ["Encoder pushes","28 Mute \u00b7 29 Play/Pause"],
+        ["Modifiers","Shift 22 \u00b7 Ctrl 36 \u00b7 Alt 37 \u00b7 Super = hold 39"]]
+  },
+  xtra:{
+    key:"xtra", name:"XTRA", sub:"the frequently-reached layer", reach:"hold position 38 (left inner thumb)", held:[38],
+    body:"The right hand is a <strong>calculator block</strong>: 1\u20139 as a numpad on the three inner columns, 0 on the ring finger, and + \u2212 * / = filling the two outer columns beside them. The left hand takes the symbols the operator column did not claim, packed from position 0 with no gaps \u2014 QWERTY number-row order except at the tail, where <strong>( and ) were pulled together onto 23 and 24</strong> so the pair rolls across two adjacent fingers. <strong>/ is a deliberate duplicate</strong> of BASE 42, so the whole calculator works without leaving the layer.",
+    enc:[BRI, PAGE],
+    kv:[["Numpad","1\u20139 on 5\u20137, 16\u201318, 30\u201332 \u00b7 0 on 8"],
+        ["Operators","+ 9 \u00b7 \u2212 19 \u00b7 * 20 \u00b7 / 33 \u00b7 = 34"],
+        ["Left symbols","` ~ ! @ # $ % ^ & _ ( ) \u2014 12 keys, no gaps"],
+        ["Parens","23 and 24, adjacent \u2014 pinky then ring"],
+        ["Free","25, 26, 27 at the end of the left block"],
+        ["Left encoder","brightness \u2014 moved down from FN"],
+        ["Left transparent","[ ] { } \\ | : \" \u2014 all reachable from BASE"],
+        ["Super","39 \u2014 a plain &kp LGUI here, so Super+1\u20130 works off the numpad"],
+        ["To FN","hold position 41 while here"]]
+  },
+  fn:{
+    key:"fn", name:"FN", sub:"function keys", reach:"from XTRA, hold position 41", held:[38,41],
+    body:"Reached by chaining: hold 38 for XTRA, then add 41. <strong>F2\u2013F11 run straight across the top row in order</strong>, with F1 and F12 on the outer columns of the row below. Everything else is <strong>&none \u2014 deliberately dead, not transparent</strong>. It used to be transparent, which on this layer does not mean empty: FN is only ever reached through XTRA, so a transparent key fell through to XTRA\u2019s numpad and the right hand quietly typed digits. The space is now clear, waiting on home-automation controls.",
+    enc:[VOL, ["Track next / previous","&inc_dec_kp C_NEXT C_PREV"]],
+    kv:[["Reached by","38 then 41 \u2014 no conditional_layers node any more"],
+        ["F2\u2013F11","straight across the top row, 0\u20139"],
+        ["F1 and F12","10 and 21 \u2014 outer columns, bracketing the run"],
+        ["Right hand","&none \u2014 reserved for home automation"],
+        ["Still transparent","36 Ctrl \u00b7 37 Alt \u00b7 39 Super, so Alt+F4 and Ctrl+F5 still work \u00b7 38 and 41, the keys you are holding"],
+        ["Encoders","volume and track"],
+        ["To SYS","hold 22 \u2014 so 38 + 41 + 22 together"]]
+  },
+  sys:{
+    key:"sys", name:"SYS", sub:"radio, lighting, firmware", reach:"from FN, hold position 22", held:[38,41,22],
+    body:"Three keys deep: 38, then 41, then 22. Bluetooth profiles on the left, the underglow switch on 5, and <strong>bootloader and reset mirrored on both hands</strong> so either half can be reflashed. BT 0\u20134 are pairing slots: pick an unused one, pair the machine, then switch machines from here. Twelve &rgb_ug keys used to fill the right side \u2014 effects, hue, saturation, brightness, speed \u2014 and <strong>every one of them was inert</strong>, because ZMK\u2019s underglow is off so the custom module can own the strip. They are gone.",
+    enc:[VOL, PAGE],
+    kv:[["Pairing","BT 0\u20134 select \u00b7 BT Clr wipes the current slot"],
+        ["Output","USB \u00b7 BLE \u00b7 toggle on 23\u201325"],
+        ["Underglow","5 \u2014 on/off for the reactive lighting, remembered across reboots"],
+        ["Careful","26 \u00b7 27 \u00b7 30 \u00b7 31 reboot the half you press them on"],
+        ["Unreachable","BT 4 and the left Bootldr sit on the broken P0.09 column"]]
+  }
+};
+var ORDER = ["base","xtra","fn","sys"];
+var DATA = {base:BASE, xtra:XTRA, fn:FN, sys:SYS};
+
+/* ---- render ---------------------------------------------------------- */
+var board = document.getElementById("board");
+var current = "base", selected = null;
+
+function fsClass(s){
+  var n = s.length;
+  return n <= 2 ? "fs-1" : n <= 4 ? "fs-2" : n <= 6 ? "fs-3" : "fs-4";
+}
+
+var nodes = [];
+slots.forEach(function(s){
+  var el = document.createElement("button");
+  el.type = "button";
+  el.className = s.t === "enc" ? "enc" : "key";
+  el.style.left = s.x + "px";
+  el.style.top  = s.y + "px";
+  el.dataset.p = s.p;
+  el.innerHTML = '<span class="num">' + s.p + '</span>' +
+                 (s.t === "enc" ? '<span class="rot">↺ ↻</span>' : "") +
+                 '<span class="lbl"></span>';
+  el.addEventListener("click", function(){ select(s.p); });
+  board.appendChild(el);
+  nodes.push(el);
+});
+
+/* combo outlines, drawn around the trigger positions */
+var COMBOS = [
+  {pos:[0,1],   label:"TAB",   raw:"&kp TAB"}
+];
+var comboEls = COMBOS.map(function(c){
+  var a = slots[c.pos[0]], b = slots[c.pos[1]];
+  var x0 = Math.min(a.x, b.x) - 4, y0 = Math.min(a.y, b.y) - 4;
+  var x1 = Math.max(a.x, b.x) + 52 + 4, y1 = Math.max(a.y, b.y) + 52 + 4;
+  var e = document.createElement("div");
+  e.className = "combo";
+  e.style.left = x0 + "px";  e.style.top = y0 + "px";
+  e.style.width = (x1 - x0) + "px"; e.style.height = (y1 - y0) + "px";
+  e.innerHTML = '<span class="combo-tag">' + c.label + "</span>";
+  board.appendChild(e);
+  return e;
+});
+
+[["LEFT · CENTRAL", 0, 292], ["RIGHT · PERIPHERAL", 690, 292]].forEach(function(l){
+  var e = document.createElement("div");
+  e.className = "halflabel";
+  e.textContent = l[0]; e.style.left = l[1] + "px"; e.style.top = l[2] + "px";
+  board.appendChild(e);
+});
+
+function paint(){
+  var L = DATA[current], meta = LAYERS[current];
+  board.dataset.l = current;
+  comboEls.forEach(function(e){ e.style.display = current === "base" ? "" : "none"; });
+  slots.forEach(function(s, i){
+    var b = L[s.p], el = nodes[i];
+    var isTrans = b[2] === "trans";
+    var label = isTrans ? BASE[s.p][0] : b[0];
+    var held = meta.held.indexOf(s.p) !== -1;
+    var cls = (s.t === "enc" ? "enc" : "key");
+    if (s.t !== "enc") cls += " " + fsClass(label);
+    if (isTrans && !held) cls += " trans";
+    if (b[2] === "mo")     cls += " mo";
+    if (b[2] === "danger") cls += " danger";
+    if (held)              cls += " held";
+    if (selected === s.p)  cls += " sel";
+    el.className = cls;
+    el.querySelector(".lbl").textContent = held && isTrans ? BASE[s.p][0] : label;
+    el.setAttribute("aria-label", "Position " + s.p + ", " + (label || "transparent"));
+  });
+  detail(meta);
+  if (selected !== null) inspect(selected);
+}
+
+function detail(m){
+  var d = document.getElementById("detail");
+  d.dataset.l = m.key;
+  document.getElementById("d-name").textContent = m.name + "  " + m.sub;
+  document.getElementById("d-reach").textContent = m.reach;
+  document.getElementById("d-body").innerHTML = m.body;
+  var kv = m.kv.slice();
+  kv.push(["Left encoder", m.enc[0][0]]);
+  kv.push(["Right encoder", m.enc[1][0]]);
+  document.getElementById("d-kv").innerHTML = kv.map(function(r){
+    return "<div><dt>" + r[0] + "</dt><dd>" + r[1] + "</dd></div>";
+  }).join("");
+}
+
+function select(pos){
+  selected = selected === pos ? null : pos;
+  paint();
+  if (selected === null){
+    document.getElementById("insp-body").hidden = true;
+    document.getElementById("insp-empty").hidden = false;
+  }
+}
+
+function inspect(pos){
+  var s = slots.filter(function(x){ return x.p === pos; })[0];
+  document.getElementById("insp-empty").hidden = true;
+  document.getElementById("insp-body").hidden = false;
+  document.getElementById("insp-pos").textContent = "Position " + pos;
+  document.getElementById("insp-where").textContent = where(s);
+
+  var rows = ORDER.map(function(k){
+    var b = DATA[k][pos];
+    var dim = b[2] === "trans" ? " dim" : "";
+    var act = k === current ? " active" : "";
+    return '<tr data-l="' + k + '" class="' + act.trim() + dim + '">' +
+             "<td>" + LAYERS[k].name + "</td><td>" + esc(b[1]) + "</td></tr>";
+  });
+
+  if (s.t === "enc"){
+    var idx = s.side === "L" ? 0 : 1;
+    rows = ORDER.map(function(k){
+      var e = LAYERS[k].enc[idx], b = DATA[k][pos];
+      return '<tr data-l="' + k + '" class="' + (k === current ? "active" : "") + '">' +
+               "<td>" + LAYERS[k].name + "</td><td>" + esc(b[1]) +
+               '<br><span style="opacity:.6">' + esc(e[1]) + "</span></td></tr>";
+    });
+  }
+  document.getElementById("insp-rows").innerHTML = rows.join("");
+
+  var note = "";
+  if (pos === 0 || pos === 1) note = "Also half of the Q + W combo that sends Tab.";
+  else if (pos === 10) note = "Escape. XTRA overrides it with a backtick, FN with F11.";
+  else if (pos === 22) note = "The only Shift on the board \u2014 the right Shift was given up for Enter. On FN it is the momentary key into SYS.";
+  else if (pos === 29) note = "Play/pause. It held NAV until that layer was deleted, so it is free again \u2014 and it is the one spare key on the peripheral half.";
+  else if (pos === 38) note = "Hold for XTRA \u2014 the only momentary layer key on BASE. Hold it first and 39 becomes a plain Super, with the numpad underneath instead of the alphas.";
+  else if (pos === 39) note = "Tap for Space, hold for Super. A hold-tap rather than &mt, whose hold-preferred flavour would turn \u201cthe quick\u201d into Super+q.";
+  else if (pos === 41) note = "A period on BASE, but on XTRA it is the door to FN \u2014 and that chain is the only route to SYS.";
+  else if (pos === 9)  note = "Plus \u2014 the top of the calculator\u2019s operator column on XTRA.";
+  else if (pos === 33) note = "A left bracket on BASE. On XTRA it is a second slash, duplicated on purpose so the calculator block is complete.";
+  else if (s.t === "enc") note = "The push switch is a normal keymap position; rotation is a separate sensor-binding, shown faint.";
+  else if (s.t === "thumb") note = "Thumb keys are the cheapest real estate on a split \u2014 spend them well.";
+  document.getElementById("insp-note").textContent = note;
+}
+
+function esc(x){
+  return String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/* ---- controls -------------------------------------------------------- */
+var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab"));
+tabs.forEach(function(tb){
+  tb.addEventListener("click", function(){
+    current = tb.dataset.l;
+    tabs.forEach(function(o){ o.setAttribute("aria-selected", String(o === tb)); });
+    paint();
+  });
+});
+document.getElementById("t-nums").addEventListener("change", function(e){
+  board.classList.toggle("hide-nums", !e.target.checked);
+});
+document.getElementById("t-fall").addEventListener("change", function(e){
+  board.classList.toggle("no-fall", !e.target.checked);
+});
+document.addEventListener("keydown", function(e){
+  var i = ORDER.indexOf(current);
+  if (e.key === "ArrowRight" && document.activeElement.classList.contains("tab")) {
+    tabs[Math.min(i + 1, tabs.length - 1)].click(); tabs[Math.min(i + 1, tabs.length - 1)].focus(); e.preventDefault();
+  }
+  if (e.key === "ArrowLeft" && document.activeElement.classList.contains("tab")) {
+    tabs[Math.max(i - 1, 0)].click(); tabs[Math.max(i - 1, 0)].focus(); e.preventDefault();
+  }
+});
+
+paint();
+})();
+</script>
+
+</body>
+</html>

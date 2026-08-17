@@ -123,3 +123,27 @@ config KLOR_BATTERY_FULL_PCT
     help
       At or above this, the bar stops blinking even with USB connected. Lower
       it if the blink never stops; raise it if it stops far too early.
+
+config KLOR_USB_DISK
+    bool "Offline keymap guide as a read-only USB drive"
+    depends on ZMK_USB
+    select USB_MASS_STORAGE
+    help
+      Plugging the left half into a computer makes a small read-only volume
+      appear alongside the keyboard, holding an offline copy of the keymap
+      guide. Open it in a browser: no network, no software to install, and
+      anyone who borrows the keyboard finds the documentation on it.
+
+      src/usb_disk_image.h is a complete FAT12 image built by
+      scripts/gen_usb_disk.py and served verbatim, so there is no filesystem
+      code on the device -- USB_MASS_STORAGE only needs DISK_ACCESS. Building
+      the image on a workstation also means fsck.fat and mtools verify it
+      before it is ever compiled in. Regenerate the header after editing
+      docs/klor-keymap.html.
+
+      Read-only in three places: the disk reports DISK_STATUS_WR_PROTECT, the
+      driver refuses writes, and the file carries the read-only attribute. The
+      contents change only by reflashing.
+
+      Left half only, and unavoidably so: ZMK_USB depends on being the central,
+      and Bluetooth offers no file transfer at all.
