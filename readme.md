@@ -110,9 +110,18 @@ The push switches are ordinary keymap positions: 28 is Mute and 29 is Play/Pause
 ### A note on fall-through
 
 `FN` can only be reached *through* `XTRA`, so position 38 stays held and `XTRA` stays
-active underneath. Every `&trans` on `FN` therefore resolves to `XTRA`, not to `BASE` — in
-practice `FN`'s right hand gives you F-keys **and** a live numpad at the same time. Use
-`&none` instead of `&trans` if you ever want a key on `FN` to genuinely do nothing.
+active underneath. A `&trans` on `FN` therefore resolves to `XTRA`, **not** to `BASE` — so
+clearing a key by making it transparent does not make it dead, it exposes whatever `XTRA`
+puts there. `FN` used to hand you F-keys and a live numpad simultaneously for exactly this
+reason.
+
+`FN` and `SYS` are now `&none` wherever they are meant to be empty, so they are genuinely
+empty. Five positions on each are still deliberately transparent: **Ctrl (36), Alt (37) and
+Super (39)**, because killing those would silently break `Alt+F4` and `Ctrl+F5`, and **38 and
+41**, the keys you are holding to be on the layer at all — their bindings are never evaluated,
+so it only changes what the OLED draws, and showing the held layer keys beats showing blanks.
+
+`FN`'s right hand is intentionally clear, waiting on home-automation controls.
 
 The keymap file opens with a position map numbering all 44 positions (42 keys plus
 the two encoder push switches). Use those numbers when adding combos.

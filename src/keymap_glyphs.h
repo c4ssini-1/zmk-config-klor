@@ -29,15 +29,15 @@ static const char *const keymap_glyphs[4][4] = {
     },
     { /* FN */
         " 23456789ab ",
-        "1$%^&_456-*c",
-        "s()CVB789/=r",
-        " caxgmp,f/' ",
+        "1          c",
+        "s           ",
+        " caxg   f   ",
     },
     { /* SYS */
         " bbbbb*     ",
-        "1bbbb_     c",
-        "soooR!!RP  r",
-        " caxgmp,f/' ",
+        "1bbbb      c",
+        "soooR!!RP   ",
+        " caxg   f   ",
     },
 };
 

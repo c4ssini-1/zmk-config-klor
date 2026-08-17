@@ -231,25 +231,32 @@
  * ├────┼────┼────┼────┼────┼────┤ ╭────╮╭────╮ ├────┼────┼────┼────┼────┼────┤
  * │SYS │    │    │    │    │    │ │    ││    │ │    │    │    │    │    │    │
  * └────┴────┴────┼────┼────┼────┤ ╰────╯╰────╯ ├────┼────┼────┼────┴────┴────┘
- *                │    │    │    │ │     │ │    │    │    │    │
+ *                │CTRL│ALT │XTRA│ │SUPER│ │    │ FN │    │    │
  *                └────┴────┴────┘ └─────┘ └────┴────┴────┴────┘
  *
  * F2-F11 run straight across the top row in order; F1 and F12 sit on the
- * outer columns of the row below, bracketing that run. Position 11 held F12
- * before and is transparent now.
+ * outer columns of the row below, bracketing that run.
  *
- * The right-hand media block is gone. Note that clearing it does NOT leave
- * those keys dead: FN is only ever reached THROUGH XTRA, so XTRA stays held
- * underneath and every &trans here falls through to it. In practice the
- * right hand reads:
+ * EVERYTHING ELSE IS &none, AND THAT IS THE POINT. These used to be &trans,
+ * which on this layer does NOT mean dead: FN is only ever reached THROUGH
+ * XTRA, so XTRA stays held underneath and a transparent key falls through to
+ * it. The right hand quietly read
  *
- *     F7  F8  F9  F10 F11        (this layer)
- *      4   5   6   -   *   F12   (4-* from XTRA, F12 from here)
- *      7   8   9   /   =   RET   (7-= from XTRA, RET from BASE)
+ *      4   5   6   -   *          (from XTRA)
+ *      7   8   9   /   =          (from XTRA)
  *
- * So F-keys and the numpad are live at the same time. That is useful, but it
- * is a fall-through, not something written on this layer -- edit XTRA if you
- * want those digits to change.
+ * so F-keys and a numpad were live together. &none stops that, leaving the
+ * space clear for the home-automation controls going here later.
+ *
+ * FIVE POSITIONS ARE STILL &trans, deliberately:
+ *
+ *   36, 37   Ctrl and Alt. Making these dead would silently break Alt+F4 and
+ *            Ctrl+F5, which is most of the reason to be on an F-key layer.
+ *   39       Super, from XTRA. Same argument.
+ *   38, 41   the keys being held to be on this layer at all. Their binding
+ *            here is never evaluated -- the press resolved on the layer below
+ *            -- so this only affects what the OLED draws, and showing the
+ *            held layer keys is more useful than showing blanks.
  *
  * ENCODERS: brightness moved off the left encoder to XTRA, so the left one
  * is volume here like everywhere else. The right one is track next/previous,
@@ -262,9 +269,9 @@
             display-name = "FN";
             bindings = <
               &kp F2     &kp F3     &kp F4     &kp F5     &kp F6                               &kp F7     &kp F8     &kp F9     &kp F10    &kp F11
-   &kp F1     &trans     &trans     &trans     &trans     &trans                               &trans     &trans     &trans     &trans     &trans     &kp F12
-   &mo SYS    &trans     &trans     &trans     &trans     &trans     &trans       &trans       &trans     &trans     &trans     &trans     &trans     &trans
-                                    &trans     &trans     &trans     &trans       &trans       &trans     &trans     &trans
+   &kp F1     &none      &none      &none      &none      &none                                &none      &none      &none      &none      &none      &kp F12
+   &mo SYS    &none      &none      &none      &none      &none      &none        &none        &none      &none      &none      &none      &none      &none
+                                    &trans     &trans     &trans     &trans       &none        &trans     &none      &none
             >;
             sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>, <&inc_dec_kp C_NEXT C_PREV>;
         };
