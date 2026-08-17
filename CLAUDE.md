@@ -289,6 +289,16 @@ Consequences, all deliberate:
   `KLOR_RGB_TOG` from [include/dt-bindings/klor_rgb.h](include/dt-bindings/klor_rgb.h). It is
   the only control the white/10%/60% scheme has to offer; anything richer means extending the
   module, never re-enabling ZMK's underglow.
+- **A behavior node invoked across the split must be named ≤ 8 characters.** The node *name*
+  — not the label — is what goes over the wire, and the payload field is
+  `char behavior_dev[ZMK_SPLIT_RUN_BEHAVIOR_DEV_LEN]` with that length set to **9**, so
+  `strlcpy` silently keeps 8 characters plus a NUL. **Silent failure**: the central invokes
+  the behavior locally under its full name and works, while the peripheral is handed a
+  truncated string that matches nothing and does nothing. A `klor_rgb_control` node shipped
+  once and produced exactly that — a toggle that darkened the left half and left the right
+  half lit. ZMK hits the same wall and names its own global behavior `ext_power: extpower`,
+  with the comment *"Behavior can be invoked on peripherals, so name must be <= 8
+  characters."* Keep the label descriptive and the node name short.
 - **The switch is `BEHAVIOR_LOCALITY_GLOBAL`, and toggle is resolved before it crosses the
   split.** Each half keeps its own enabled flag, so telling both to "flip" would leave them
   permanently disagreeing after any missed command. `binding_convert_central_state_dependent_params`

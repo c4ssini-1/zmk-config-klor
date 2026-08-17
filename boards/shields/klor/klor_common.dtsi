@@ -84,10 +84,28 @@
  *
  * The binding comes from dts/bindings/behaviors/klor,behavior-rgb.yaml, found
  * because zephyr/module.yml sets dts_root.
+ *
+ * THE NODE NAME MUST BE 8 CHARACTERS OR FEWER. It is what travels over the
+ * split link: the central sends DEVICE_DT_NAME(node) -- the node name, since
+ * there is no label property -- and the peripheral looks the behavior up by
+ * that string. The wire field is
+ * char behavior_dev[ZMK_SPLIT_RUN_BEHAVIOR_DEV_LEN], and that length is 9, so
+ * strlcpy silently keeps 8 characters plus a NUL.
+ *
+ * This already bit once. The node was called klor_rgb_control, which went out
+ * as "klor_rgb", matched nothing on the peripheral, and produced a toggle that
+ * worked perfectly on the left half and did nothing on the right -- because the
+ * central invokes the behavior locally under its full, untruncated name. ZMK
+ * hits the same wall and solves it the same way: its own global behavior is
+ * "ext_power: extpower", the label long and the node name short, with the
+ * comment "Behavior can be invoked on peripherals, so name must be <= 8
+ * characters."
+ *
+ * Keep the label descriptive and the node name short.
  */
 / {
 	behaviors {
-		rgb: klor_rgb_control {
+		rgb: rgbctl {
 			compatible = "klor,behavior-rgb";
 			#binding-cells = <1>;
 			display-name = "Underglow";
