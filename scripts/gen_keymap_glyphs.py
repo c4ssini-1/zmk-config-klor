@@ -98,7 +98,7 @@ def glyph_for(binding):
         return " "                              # tap is Space, drawn blank
     if binding.startswith("&bt "):
         return "b"
-    if binding.startswith("&rgb_ug"):
+    if binding.startswith("&rgb"):      # &rgb (ours) and ZMK's old &rgb_ug
         return "*"
     if binding.startswith("&out"):
         return "o"

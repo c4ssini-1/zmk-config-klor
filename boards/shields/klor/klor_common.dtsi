@@ -73,3 +73,24 @@
 		inversion-on;
 	};
 };
+
+/*
+ * The on/off switch for the reactive underglow, implemented in
+ * src/klor_rgb_behavior.c. It lives here rather than in the keymap's behaviors
+ * block because it must exist on BOTH halves: the behavior is global-locality,
+ * so the central forwards it over the split link and the peripheral resolves it
+ * by name. A node defined only on the central would leave the right half's
+ * strip stuck on.
+ *
+ * The binding comes from dts/bindings/behaviors/klor,behavior-rgb.yaml, found
+ * because zephyr/module.yml sets dts_root.
+ */
+/ {
+	behaviors {
+		rgb: klor_rgb_control {
+			compatible = "klor,behavior-rgb";
+			#binding-cells = <1>;
+			display-name = "Underglow";
+		};
+	};
+};

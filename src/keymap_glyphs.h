@@ -34,9 +34,9 @@ static const char *const keymap_glyphs[4][4] = {
         " caxgmp,f/' ",
     },
     { /* SYS */
-        " bbbbb***** ",
-        "1bbbb_*****c",
-        "soooR!!RP**r",
+        " bbbbb*     ",
+        "1bbbb_     c",
+        "soooR!!RP  r",
         " caxgmp,f/' ",
     },
 };

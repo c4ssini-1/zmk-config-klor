@@ -282,10 +282,23 @@ Consequences, all deliberate:
 - **`CONFIG_LED_STRIP=y` must be set explicitly.** `ZMK_RGB_UNDERGLOW` was the only thing
   doing `select LED_STRIP`; turning it off silently takes the whole strip subsystem with it,
   including `WS2812_STRIP_SPI`, whose Kconfig is sourced inside `if LED_STRIP`.
-- **The `&rgb_ug` keys on SYS are inert.** They still *build* — the behavior node is
-  declared unconditionally in ZMK's `behaviors.dtsi` and only the driver is gated — but
-  nothing implements effects, hue or saturation any more. Add them to the module rather than
-  re-enabling ZMK's underglow.
+- **`&rgb_ug` is not usable, and SYS no longer carries any.** Those keys still *built* — the
+  behavior node is declared unconditionally in ZMK's `behaviors.dtsi` and only the driver is
+  gated — but nothing implemented them, so twelve SYS keys silently did nothing until they
+  were removed. The replacement is **`&rgb`**, taking `KLOR_RGB_ON` / `KLOR_RGB_OFF` /
+  `KLOR_RGB_TOG` from [include/dt-bindings/klor_rgb.h](include/dt-bindings/klor_rgb.h). It is
+  the only control the white/10%/60% scheme has to offer; anything richer means extending the
+  module, never re-enabling ZMK's underglow.
+- **The switch is `BEHAVIOR_LOCALITY_GLOBAL`, and toggle is resolved before it crosses the
+  split.** Each half keeps its own enabled flag, so telling both to "flip" would leave them
+  permanently disagreeing after any missed command. `binding_convert_central_state_dependent_params`
+  turns `TOG` into an explicit `ON`/`OFF` on the central first — the same trick ZMK's
+  `&ext_power` uses. The behavior node lives in `klor_common.dtsi`, not the keymap's behaviors
+  block, because the peripheral resolves incoming behaviors **by name** and so needs the node
+  too.
+- **`zephyr/module.yml` needs `dts_root`.** Without it Zephyr never looks in `dts/bindings`,
+  so the binding is not found, and never adds `include/` to the devicetree preprocessor path,
+  so `#include <dt-bindings/klor_rgb.h>` in the keymap fails.
 
 **Each half is self-contained; nothing crosses the split link.**
 `zmk_position_state_changed` is raised by `physical_layouts.c` off the *local* matrix scan

@@ -6,9 +6,9 @@
 #include <behaviors.dtsi>
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/bt.h>
+#include <dt-bindings/klor_rgb.h>
 #include <dt-bindings/zmk/outputs.h>
 #include <dt-bindings/zmk/ext_power.h>
-#include <dt-bindings/zmk/rgb.h>
 
 /*
  * Layer indices. These are positional: deleting a layer renumbers everything
@@ -270,19 +270,42 @@
         };
 
 /* ------------------------------------------------------------------------
- * SYS -- from FN, hold position 22. Bluetooth profiles on the left, RGB on
- * the right, bootloader and reset on the bottom row of both hands.
+ * SYS -- from FN, hold position 22. Bluetooth profiles on the left, the
+ * underglow switch on the right, bootloader and reset on the bottom row of
+ * both hands.
  *
  * BT_SEL 0-4 pick a pairing slot: pick an unused one, pair the new machine,
  * and switch between machines by coming back here. BT_CLR wipes the current
  * slot when a pairing goes bad.
+ *
+ * THE OLD RGB BLOCK IS GONE. Twelve &rgb_ug keys sat here -- effects, hue,
+ * saturation, brightness, speed -- and every one of them was inert, because
+ * ZMK_RGB_UNDERGLOW is off so src/klor_rgb_reactive.c can own the strip. They
+ * still built, since ZMK declares the behavior unconditionally and gates only
+ * the driver, so nothing ever complained. Position 5 now carries &rgb, which
+ * switches the reactive underglow on and off and is the only control the
+ * white/10%/60% scheme has to offer. The rest are &none rather than &trans on
+ * purpose: this layer holds bootloader and reset, and a stray fall-through to
+ * XTRA's numpad is not what you want under fingers hunting for those.
+ *
+ *   ,----------------------------------.        ,----------------------------------.
+ *   | BT0 | BT1 | BT2 | BT3 | BT4 |     |        | RGB |     |     |     |     |     |
+ *   |-----+-----+-----+-----+-----+-----|        |-----+-----+-----+-----+-----+-----|
+ *   |     | CLR | PRV | NXT |CLRAL|     |        |     |     |     |     |     |     |
+ *   |-----+-----+-----+-----+-----+-----|        |-----+-----+-----+-----+-----+-----|
+ *   |     | USB | BLE | TOG | RST | BOOT|        | BOOT| RST | EPWR|     |     |     |
+ *   `----------------------------------'        `----------------------------------'
+ *
+ * BT4 and the left BOOT sit on the dead P0.09 column, so they are unreachable
+ * until the controller is repaired. Left deliberately in place -- the pins are
+ * being replaced, and moving them now would only have to be undone.
  * ------------------------------------------------------------------------ */
         sys_layer {
             display-name = "SYS";
             bindings = <
-              &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2 &bt BT_SEL 3 &bt BT_SEL 4                 &rgb_ug RGB_TOG &rgb_ug RGB_EFF &rgb_ug RGB_HUI &rgb_ug RGB_BRI &rgb_ug RGB_SPI
-   &trans     &bt BT_CLR &bt BT_PRV &bt BT_NXT &bt BT_CLR_ALL &trans                           &rgb_ug RGB_ON &rgb_ug RGB_EFR &rgb_ug RGB_HUD &rgb_ug RGB_BRD &rgb_ug RGB_SPD &trans
-   &trans     &out OUT_USB &out OUT_BLE &out OUT_TOG &sys_reset &bootloader &trans   &trans     &bootloader &sys_reset &ext_power EP_TOG &rgb_ug RGB_SAI &rgb_ug RGB_SAD &trans
+              &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2 &bt BT_SEL 3 &bt BT_SEL 4                 &rgb KLOR_RGB_TOG &none      &none      &none      &none
+   &trans     &bt BT_CLR &bt BT_PRV &bt BT_NXT &bt BT_CLR_ALL &trans                           &none      &none      &none      &none      &none      &trans
+   &trans     &out OUT_USB &out OUT_BLE &out OUT_TOG &sys_reset &bootloader &trans   &trans     &bootloader &sys_reset &ext_power EP_TOG &none      &none      &trans
                                     &trans     &trans     &trans     &trans       &trans       &trans     &trans     &trans
             >;
             sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>, <&inc_dec_kp PG_UP PG_DN>;

@@ -7,8 +7,11 @@ config KLOR_RGB_REACTIVE
 
       Takes exclusive ownership of the led_strip device, so ZMK_RGB_UNDERGLOW
       must be n while this is enabled -- two writers on one strip would fight.
-      That also means ZMK's &rgb_ug behaviors do nothing; the effects, hue and
-      saturation controls on the SYS layer are inert.
+      That also means ZMK's &rgb_ug behaviors do nothing, which is why the SYS
+      layer no longer carries any. The replacement is &rgb, defined in
+      boards/shields/klor/klor_common.dtsi and implemented by
+      src/klor_rgb_behavior.c, which switches this module on and off and
+      persists the choice.
 
 if KLOR_RGB_REACTIVE
 

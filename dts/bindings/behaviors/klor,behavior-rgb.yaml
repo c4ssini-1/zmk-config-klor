@@ -1,0 +1,13 @@
+# Control for the custom reactive underglow in src/klor_rgb_reactive.c.
+#
+# ZMK's own &rgb_ug cannot be used: this config turns ZMK_RGB_UNDERGLOW off so
+# the module can own the led_strip device outright, which leaves &rgb_ug with no
+# implementation behind it. This behavior is the replacement, and it does one
+# thing -- on, off, or toggle -- because the module's white/10%/60% scheme has
+# nothing else to adjust.
+
+description: KLOR reactive underglow on/off
+
+compatible: "klor,behavior-rgb"
+
+include: one_param.yaml

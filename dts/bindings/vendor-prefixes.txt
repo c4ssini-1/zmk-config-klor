@@ -1,0 +1,5 @@
+# Registers "klor" so the custom behavior's compatible string does not trip
+# Zephyr's unknown-vendor-prefix warning. dts.cmake picks this up automatically
+# from any DTS root: it passes --vendor-prefixes to gen_defines.py for every
+# <root>/dts/bindings/vendor-prefixes.txt that exists.
+klor	KLOR split keyboard (this config)

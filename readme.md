@@ -56,7 +56,7 @@ than combine — each one is reached from the one before it, adding a key:
 | `BASE` | default | QWERTY. Esc on the left outer column, Enter on the right, brackets filling the right hand's bottom row |
 | `XTRA` | hold **38** (left inner thumb) | Calculator on the right hand — numpad plus `+ - * / =`. Symbols on the left in QWERTY number-row order |
 | `FN` | from `XTRA`, add **41** | F1–F12. F2–F11 straight across the top row, F1 and F12 on the outer columns below |
-| `SYS` | from `FN`, add **22** | Bluetooth profiles, USB/BLE output, bootloader, reset. *The RGB keys here are inert* — see LIGHTING |
+| `SYS` | from `FN`, add **22** | Bluetooth profiles, USB/BLE output, bootloader, reset, and the underglow on/off key |
 
 ```
 BASE
@@ -127,8 +127,10 @@ underglow subsystem never sees key events. So the module takes the strip over co
 which has three consequences worth knowing:
 
 - `CONFIG_ZMK_RGB_UNDERGLOW` is **off**. Two writers on one strip would fight.
-- The `&rgb_ug` keys on `SYS` **do nothing**. Effects, hue and saturation are not
-  implemented. Add them to the module rather than switching ZMK's underglow back on.
+- **`SYS` has one lighting key: `&rgb` on position 5, which turns the underglow on and
+  off.** The choice is remembered across reboots. Twelve `&rgb_ug` keys used to sit there —
+  effects, hue, saturation, brightness, speed — and every one was inert, because ZMK's
+  underglow is off so this module can own the strip. They have been removed.
 - The encoder pushes have no LED, so nothing lights when you click them.
 
 **Each half is independent.** ZMK raises key events locally on both boards, so the right

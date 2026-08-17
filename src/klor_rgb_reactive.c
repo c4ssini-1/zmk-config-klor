@@ -36,8 +36,12 @@
 #include <zephyr/init.h>
 #include <zephyr/logging/log.h>
 
+#include <zephyr/settings/settings.h>
+
 #include <zmk/event_manager.h>
 #include <zmk/events/position_state_changed.h>
+
+#include "klor_rgb.h"
 
 LOG_MODULE_REGISTER(klor_rgb_reactive, LOG_LEVEL_INF);
 
@@ -101,9 +105,20 @@ static struct led_rgb pixels[STRIP_LEN];
  * LED, and makes release order irrelevant. */
 static uint8_t held[STRIP_LEN];
 
+/*
+ * Off means every LED is written black, not that the strip stops being driven.
+ * The module still owns the device and still redraws on key events; it just
+ * renders zeros. Leaving the data line idle instead would strand the LEDs on
+ * whatever they last latched.
+ */
+static bool rgb_enabled = true;
+
 static void render(struct k_work *work) {
     for (int i = 0; i < STRIP_LEN; i++) {
-        uint8_t v = held[i] ? LEVEL(PRESS_LEVEL) : LEVEL(IDLE_LEVEL);
+        uint8_t v = 0;
+        if (rgb_enabled) {
+            v = held[i] ? LEVEL(PRESS_LEVEL) : LEVEL(IDLE_LEVEL);
+        }
         pixels[i].r = pixels[i].g = pixels[i].b = v;
     }
 
@@ -151,6 +166,67 @@ static int on_position(const zmk_event_t *eh) {
 
 ZMK_LISTENER(klor_rgb_reactive, on_position);
 ZMK_SUBSCRIPTION(klor_rgb_reactive, zmk_position_state_changed);
+
+/*
+ * ON/OFF STATE, AND WHY IT IS PERSISTED.
+ *
+ * The switch exists to save battery, so forgetting it across a reboot would
+ * defeat the point -- the lights would come back every time the board sleeps
+ * deeply or is reflashed. Saving is debounced because settings writes hit flash
+ * and the toggle is a keypress; ZMK debounces its own settings the same way.
+ *
+ * Each half stores its own copy. They are kept in agreement by the behavior
+ * rather than by sharing state: the central resolves TOGGLE into an explicit
+ * ON or OFF before the command crosses the split link, so both sides are told
+ * the same thing rather than each flipping whatever it happens to hold.
+ */
+#if IS_ENABLED(CONFIG_SETTINGS)
+
+#define RGB_SETTINGS_KEY "klor_rgb/enabled"
+
+static void rgb_save_work_cb(struct k_work *work) {
+    int rc = settings_save_one(RGB_SETTINGS_KEY, &rgb_enabled, sizeof(rgb_enabled));
+    if (rc) {
+        LOG_ERR("failed to save underglow state: %d", rc);
+    }
+}
+
+static K_WORK_DELAYABLE_DEFINE(rgb_save_work, rgb_save_work_cb);
+
+static int rgb_settings_load(const char *name, size_t len, settings_read_cb read_cb,
+                             void *cb_arg) {
+    const char *next;
+    if (settings_name_steq(name, "enabled", &next) && !next) {
+        if (len != sizeof(rgb_enabled)) {
+            return -EINVAL;
+        }
+        int rc = read_cb(cb_arg, &rgb_enabled, sizeof(rgb_enabled));
+        return rc >= 0 ? 0 : rc;
+    }
+    return -ENOENT;
+}
+
+SETTINGS_STATIC_HANDLER_DEFINE(klor_rgb, "klor_rgb", NULL, rgb_settings_load, NULL, NULL);
+
+static void rgb_save(void) {
+    k_work_reschedule(&rgb_save_work, K_MSEC(CONFIG_ZMK_SETTINGS_SAVE_DEBOUNCE));
+}
+
+#else
+static void rgb_save(void) {}
+#endif /* CONFIG_SETTINGS */
+
+void klor_rgb_set_enabled(bool enabled) {
+    if (enabled == rgb_enabled) {
+        return;
+    }
+    rgb_enabled = enabled;
+    LOG_INF("reactive underglow %s", enabled ? "on" : "off");
+    k_work_submit(&render_work);
+    rgb_save();
+}
+
+bool klor_rgb_is_enabled(void) { return rgb_enabled; }
 
 static int klor_rgb_reactive_init(void) {
     if (!device_is_ready(strip)) {

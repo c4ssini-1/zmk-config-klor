@@ -4,11 +4,18 @@
 # repo root, which contains boards/shields/klor. That is what makes ZMK find
 # the vendored shield without the deprecated config/boards folder.
 #
-# cmake/kconfig additionally let this module contribute C code. Currently that
-# is only the temporary LED mapping harness; if src/ is ever emptied, these two
-# lines can go with it.
+# dts_root does the same job for devicetree. Zephyr walks each DTS root and adds
+# <root>/dts/bindings to the binding search path and <root>/include to the
+# devicetree preprocessor's include path -- see pre_dt.cmake. Both matter here:
+# the first finds dts/bindings/behaviors/klor,behavior-rgb.yaml, and the second
+# is what lets the keymap say #include <dt-bindings/klor_rgb.h>. Without this
+# line the binding is simply never found and the behavior node fails to compile.
+#
+# cmake/kconfig additionally let this module contribute the C sources in src/:
+# the reactive underglow, its control behavior, and the OLED status screen.
 build:
   cmake: .
   kconfig: Kconfig
   settings:
     board_root: .
+    dts_root: .
