@@ -449,6 +449,41 @@ static void render(void) {
 #endif
 }
 
+#if !KLOR_HAS_LAYER_STATE
+
+/*
+ * The peripheral cannot read the keymap, so the central pushes the layer to it
+ * over the split link -- see src/klor_layer_sync.c. This is the receiving end.
+ *
+ * The call arrives on whichever thread handled the split command, never the
+ * display thread, so it only records the value and bounces the redraw onto the
+ * display work queue. Doing LVGL work directly from here would race the
+ * renderer.
+ */
+static uint8_t pushed_layer;
+
+static void pushed_layer_work_cb(struct k_work *work) {
+    if (pushed_layer == cur_layer) {
+        return;
+    }
+    cur_layer = pushed_layer;
+    render();
+}
+
+static K_WORK_DEFINE(pushed_layer_work, pushed_layer_work_cb);
+
+void klor_status_set_layer(uint8_t layer) {
+    pushed_layer = layer;
+
+    /* Before the display is up there is nothing to submit to; the value is
+     * still recorded, and the initial paint will pick it up. */
+    if (zmk_display_is_initialized()) {
+        k_work_submit_to_queue(zmk_display_work_q(), &pushed_layer_work);
+    }
+}
+
+#endif /* !KLOR_HAS_LAYER_STATE */
+
 #if KLOR_HAS_LAYER_STATE
 
 static void set_layer_cb(struct layer_state state) {

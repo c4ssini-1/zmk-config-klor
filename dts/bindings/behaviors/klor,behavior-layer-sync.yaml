@@ -1,0 +1,12 @@
+# Carries the active layer index from the central to the peripheral.
+#
+# Not a keymap behavior -- nothing binds it to a key. It exists only because
+# RUN_BEHAVIOR is the one central-to-peripheral channel ZMK offers that can
+# carry an arbitrary value, and the peripheral otherwise has no way to learn
+# which layer is active: it never runs the keymap.
+
+description: KLOR split layer-state sync
+
+compatible: "klor,behavior-layer-sync"
+
+include: one_param.yaml

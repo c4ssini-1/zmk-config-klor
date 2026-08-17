@@ -110,5 +110,19 @@
 			#binding-cells = <1>;
 			display-name = "Underglow";
 		};
+
+		/*
+		 * Not bound to any key. The central invokes it directly to tell the
+		 * peripheral which layer is active, since the peripheral never runs
+		 * the keymap and RUN_BEHAVIOR is the only downward channel that can
+		 * carry a value. Node name kept short for the same 8-character reason
+		 * as rgbctl above -- this one actually travels the link every time a
+		 * layer changes.
+		 */
+		layer_sync: laysync {
+			compatible = "klor,behavior-layer-sync";
+			#binding-cells = <1>;
+			display-name = "Layer sync";
+		};
 	};
 };

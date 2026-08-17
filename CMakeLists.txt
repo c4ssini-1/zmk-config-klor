@@ -10,11 +10,12 @@
 target_sources_ifdef(CONFIG_KLOR_RGB_REACTIVE app PRIVATE src/klor_rgb_reactive.c)
 target_sources_ifdef(CONFIG_KLOR_RGB_REACTIVE app PRIVATE src/klor_rgb_behavior.c)
 target_sources_ifdef(CONFIG_KLOR_STATUS_SCREEN app PRIVATE src/klor_status_screen.c)
+target_sources_ifdef(CONFIG_KLOR_LAYER_SYNC app PRIVATE src/klor_layer_sync.c)
 
 # Headers next to the sources: keymap_glyphs.h for the screen, klor_rgb.h shared
 # between the underglow and its behavior. The sources are compiled into app from
 # a different directory, so the include path needs stating.
-if(CONFIG_KLOR_STATUS_SCREEN OR CONFIG_KLOR_RGB_REACTIVE)
+if(CONFIG_KLOR_STATUS_SCREEN OR CONFIG_KLOR_RGB_REACTIVE OR CONFIG_KLOR_LAYER_SYNC)
   target_include_directories(app PRIVATE src)
 endif()
 

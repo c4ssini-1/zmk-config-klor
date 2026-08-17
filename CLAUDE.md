@@ -79,8 +79,8 @@ shield *directory* name (`klor`), not the per-half shield names.
 Unlike the shield's `klor.conf`, these are *not* shadowed — the build log shows each half
 merging its own. Both now carry the custom status screen, and they are kept as two files
 rather than folded into `config/klor.conf` because the two halves are not interchangeable:
-the central can show the active layer and the peripheral cannot, so the differences are
-expected to grow rather than shrink. Their LVGL settings are otherwise identical, and a
+the central reads the keymap while the peripheral has the layer pushed to it, so the
+differences are expected to grow rather than shrink. Their LVGL settings are otherwise identical, and a
 change to one almost always belongs in the other — the memory pool, the font, the mono
 theme and the dedicated display work queue are all needed on both.
 
@@ -198,15 +198,23 @@ link — `zmk_position_state_changed` is raised locally by each board's own matr
   polarity as the draw path. The cell is drawn **permanently inverted** — `render()` lays a
   white square there as part of the layer and the mark goes on in black — so it reads as a
   status badge rather than as a key that is stuck down.
-- **The layer is central-only, and that is a link-time fact, not a policy.** ZMK compiles
-  neither `src/keymap.c` nor `src/events/layer_state_changed.c` into a non-central build
-  (see the `if ((NOT CONFIG_ZMK_SPLIT) OR CONFIG_ZMK_SPLIT_ROLE_CENTRAL)` block in
-  `app/CMakeLists.txt`). So on the peripheral `zmk_keymap_highest_layer_active()` and a
+- **The peripheral cannot read the layer itself — it is pushed to it.** ZMK compiles neither
+  `src/keymap.c` nor `src/events/layer_state_changed.c` into a non-central build (see the
+  `if ((NOT CONFIG_ZMK_SPLIT) OR CONFIG_ZMK_SPLIT_ROLE_CENTRAL)` block in
+  `app/CMakeLists.txt`), so on the peripheral `zmk_keymap_highest_layer_active()` and a
   subscription to the layer event do not return nothing — they **fail to link**. Everything
-  layer-related sits behind `KLOR_HAS_LAYER_STATE`, and the right half draws BASE. Carrying
-  the layer across would mean a custom channel; the only central→peripheral hooks that exist
-  are `RUN_BEHAVIOR` (reachable via `zmk_split_central_invoke_behavior()`), HID indicators
-  and physical-layout selection.
+  layer-related sits behind `KLOR_HAS_LAYER_STATE`.
+  [src/klor_layer_sync.c](src/klor_layer_sync.c) closes the gap: the central watches
+  `zmk_layer_state_changed` and pushes the index over `RUN_BEHAVIOR`, the only
+  central→peripheral hook that carries an arbitrary value (the others are HID indicators and
+  physical-layout selection). The peripheral's screen takes it through
+  `klor_status_set_layer()`, which marshals the redraw onto the display queue because the
+  call arrives on the split thread.
+- **The layer push is best-effort.** `bt_gatt_write_without_response` is unacknowledged, and
+  there is no central-side "peripheral connected" event to resync against — `central.c`
+  raises none. A dropped packet leaves the right screen stale until the next layer change
+  fixes it, which is tolerable because `zmk_layer_state_changed` fires on activation *and*
+  deactivation, so every layer key press and release resyncs.
 
 Implementation notes worth keeping:
 
@@ -390,8 +398,9 @@ The KLOR PCB's capabilities are a superset of what ZMK delivers. Do not add conf
   possible. *Mainline ZMK cannot do it* — four whole-strip effects, no per-LED API, and the
   underglow subsystem subscribes only to `zmk_activity_state_changed`. See "Per-key reactive
   underglow" below for the module that does.
-- **The right OLED cannot show the active layer.** It is a BLE peripheral and receives no
-  layer state without custom firmware work.
+- **The right OLED gets no layer state from ZMK** — it is a BLE peripheral. This config
+  supplies it anyway, by pushing the layer across the split link itself; see
+  [src/klor_layer_sync.c](src/klor_layer_sync.c).
 - **Both encoders do work.** Upstream's "the secondary encoder doesn't work" note is stale —
   ZMK forwards peripheral sensor events.
 

@@ -43,8 +43,9 @@ longer built. Fixed here:
   do it*: four whole-strip effects, no per-LED API, and no key-event hook. This repo
   ships [`src/klor_rgb_reactive.c`](src/klor_rgb_reactive.c), which takes over the
   strip and does it properly. See RGB below.
-- **The right OLED is limited.** It is a BLE peripheral and does not receive layer
-  state, so it cannot show the active layer without custom firmware work.
+- **The right OLED needs help to show the layer.** It is a BLE peripheral and receives no
+  layer state from ZMK, so this config pushes it across the split link itself — see
+  DISPLAY below.
 
 ## KEYMAP
 
@@ -178,11 +179,15 @@ it has not. It is drawn permanently inverted — black mark on a white square �
 a status badge rather than as a key you are holding down. Handy for telling "the halves have
 not paired" apart from "a key is dead".
 
-**The right OLED does not follow the layer.** It is a BLE peripheral and never runs the
-keymap — ZMK does not even compile the keymap or the layer event into a peripheral build, so
-this is a link-time limit rather than something that can be switched on. The right half
-highlights its own keys correctly but always draws the BASE glyphs. Carrying the layer
-across the split link needs a custom channel and is not done yet.
+**Both OLEDs follow the active layer**, though the right one only does so because the layer
+is *pushed* to it. A BLE peripheral never runs the keymap — ZMK does not even compile the
+keymap or the layer event into a peripheral build — so
+[`src/klor_layer_sync.c`](src/klor_layer_sync.c) has the central send the layer index over
+the split link whenever it changes, riding in a behaviour parameter because that is the only
+downward channel that carries a value.
+
+It is best-effort: the write is unacknowledged and nothing resyncs on reconnect, so a dropped
+packet leaves the right screen stale until the next layer key press corrects it.
 
 ## FLASHING
 
@@ -202,11 +207,6 @@ the normal firmware back.
 
 ## NOT DONE YET
 
-- **Layer sync to the right OLED.** The right half highlights its own keys but always draws
-  BASE, so it shows QWERTY while you are on `XTRA` — where the right hand is actually a
-  numpad. The split link has no layer channel, so this needs a custom one: a behaviour
-  fired from a layer-change listener on the central, carried by
-  `zmk_split_central_invoke_behavior()` and received by name on the peripheral.
 - **Repair the left controller.** Its **P0.09** pin is broken — that is matrix column 5,
   so `T`, `G`, `B` and the left encoder push are dead, along with the four LEDs under
   them. While the iron is out, check **VCC (pin 21)** and the **grounds (pins 3, 4, 23)**:
