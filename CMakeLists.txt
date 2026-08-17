@@ -17,3 +17,16 @@ target_sources_ifdef(CONFIG_KLOR_STATUS_SCREEN app PRIVATE src/klor_status_scree
 if(CONFIG_KLOR_STATUS_SCREEN OR CONFIG_KLOR_RGB_REACTIVE)
   target_include_directories(app PRIVATE src)
 endif()
+
+# include/ holds dt-bindings/klor_rgb.h, which BOTH the keymap and the behavior
+# source include -- and they reach it by different routes.
+#
+# The keymap is devicetree, and gets it from zephyr/module.yml's dts_root: that
+# adds <root>/include to the devicetree preprocessor's search path. But dts_root
+# says nothing to the C compiler, so without the line below the C build fails
+# with "dt-bindings/klor_rgb.h: No such file or directory" even though the exact
+# same include resolved fine moments earlier while generating the devicetree.
+# That is not a hypothetical -- it is how this first landed.
+if(CONFIG_KLOR_RGB_REACTIVE)
+  target_include_directories(app PRIVATE include)
+endif()

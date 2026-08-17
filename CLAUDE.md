@@ -299,6 +299,13 @@ Consequences, all deliberate:
 - **`zephyr/module.yml` needs `dts_root`.** Without it Zephyr never looks in `dts/bindings`,
   so the binding is not found, and never adds `include/` to the devicetree preprocessor path,
   so `#include <dt-bindings/klor_rgb.h>` in the keymap fails.
+- **`dts_root` covers devicetree only — the C compiler needs its own `-I`.** The same
+  `dt-bindings/klor_rgb.h` is included by both the keymap and `klor_rgb_behavior.c`, and they
+  reach it by different routes. `dts_root` satisfies the first; the second needs
+  `target_include_directories(app PRIVATE include)` in [CMakeLists.txt](CMakeLists.txt).
+  Missing it fails the build with *"dt-bindings/klor_rgb.h: No such file or directory"* from
+  the C compiler, moments after the identical include resolved fine while generating the
+  devicetree — which reads as nonsense until you know the two paths are separate.
 
 **Each half is self-contained; nothing crosses the split link.**
 `zmk_position_state_changed` is raised by `physical_layouts.c` off the *local* matrix scan
