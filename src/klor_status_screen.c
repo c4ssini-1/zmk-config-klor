@@ -211,33 +211,42 @@ static inline int local_col(int c) {
  * ever added there, this will draw over its glyph.
  *
  * unscii_8 is 7-bit ASCII and has neither a tick nor a cross, so these are
- * pixel bitmaps rather than characters. One bit per pixel, bit 6 leftmost.
- * They are painted with lv_canvas_set_px after the draw layer is dispatched,
- * which keeps them off the draw-task heap entirely; for indexed formats that
- * call takes the palette index straight from color.blue, so the same
- * ON_GLASS_* colours apply.
+ * pixel bitmaps rather than characters. One bit per pixel, bit 8 leftmost --
+ * uint16_t rather than uint8_t because the marks are 9 wide. They are painted
+ * with lv_canvas_set_px after the draw layer is dispatched, which keeps them
+ * off the draw-task heap entirely; for indexed formats that call takes the
+ * palette index straight from color.blue, so the same ON_GLASS_* colours apply.
+ *
+ * STROKES ARE 2 px. A single-pixel stroke was legible only if you went looking
+ * for it -- on a 128x64 panel these are about a millimetre across. The marks
+ * are sized to the 11x11 highlight square they sit in rather than to the 8x9
+ * glyph box, which is what buys the room for the thicker stroke.
  */
-#define MARK_W 7
-#define MARK_H 7
+#define MARK_W 9
+#define MARK_H 9
 
-static const uint8_t mark_tick[MARK_H] = {
-    0x00, /* ....... */
-    0x01, /* ......# */
-    0x02, /* .....#. */
-    0x44, /* #...#.. */
-    0x28, /* .#.#... */
-    0x10, /* ..#.... */
-    0x00, /* ....... */
+static const uint16_t mark_tick[MARK_H] = {
+    0x000, /* ......... */
+    0x001, /* ........# */
+    0x003, /* .......## */
+    0x106, /* #.....##. */
+    0x18c, /* ##...##.. */
+    0x0d8, /* .##.##... */
+    0x070, /* ..###.... */
+    0x020, /* ...#..... */
+    0x000, /* ......... */
 };
 
-static const uint8_t mark_cross[MARK_H] = {
-    0x41, /* #.....# */
-    0x22, /* .#...#. */
-    0x14, /* ..#.#.. */
-    0x08, /* ...#... */
-    0x14, /* ..#.#.. */
-    0x22, /* .#...#. */
-    0x41, /* #.....# */
+static const uint16_t mark_cross[MARK_H] = {
+    0x101, /* #.......# */
+    0x183, /* ##.....## */
+    0x0c6, /* .##...##. */
+    0x06c, /* ..##.##.. */
+    0x038, /* ...###... */
+    0x06c, /* ..##.##.. */
+    0x0c6, /* .##...##. */
+    0x183, /* ##.....## */
+    0x101, /* #.......# */
 };
 
 /* Bottom row, rightmost cell -- immediately after the apostrophe. */
@@ -302,11 +311,14 @@ static void build_text(uint8_t layer) {
 static bool link_connected;
 
 static void draw_link_mark(void) {
-    const uint8_t *rows = link_connected ? mark_tick : mark_cross;
+    const uint16_t *rows = link_connected ? mark_tick : mark_cross;
 
-    /* Centre the 7x7 mark in the 8x9 glyph box of its cell. */
-    int x0 = ORIGIN_X + (2 * LINK_CELL_COL) * CELL_W + (GLYPH_W - MARK_W) / 2;
-    int y0 = ORIGIN_Y + LINK_CELL_ROW * CELL_H + (GLYPH_H - MARK_H) / 2;
+    /* Centred in the 11x11 highlight square, not in the 8x9 glyph box -- the
+     * mark is a badge filling that square, and at 9 px it is wider than a
+     * glyph. Squaring it against the box instead would push it off centre and
+     * crowd the right edge. */
+    int x0 = ORIGIN_X + (2 * LINK_CELL_COL) * CELL_W - HL_PAD_X + (HL_SIDE - MARK_W) / 2;
+    int y0 = ORIGIN_Y + LINK_CELL_ROW * CELL_H - HL_PAD_Y + (HL_SIDE - MARK_H) / 2;
 
     for (int y = 0; y < MARK_H; y++) {
         for (int x = 0; x < MARK_W; x++) {

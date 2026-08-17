@@ -191,7 +191,7 @@ link — `zmk_position_state_changed` is raised locally by each board's own matr
   `peripheral.c`, and `bluetooth/peripheral.c` is compiled only when *not* central. That
   cell is empty by luck of the matrix — the transform puts no key at row 3, column 11 — not
   by reservation, so adding a key there would collide with the mark. `unscii_8` is 7-bit
-  ASCII with neither glyph, so both marks are 7×7 pixel bitmaps painted with
+  ASCII with neither glyph, so both marks are 9×9 pixel bitmaps with 2 px strokes, painted with
   `lv_canvas_set_px` *after* `lv_canvas_finish_layer`; doing it before would let the queued
   draw tasks paint over them. For indexed formats that call takes the palette index straight
   from `color.blue` rather than luminance, which happens to give the same black/white
