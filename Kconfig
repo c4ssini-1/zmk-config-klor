@@ -90,3 +90,36 @@ config KLOR_LAYER_SYNC
       no central-side "peripheral connected" event to resync against, so a
       dropped packet leaves the right screen stale until the next layer change
       corrects it.
+
+config KLOR_BATTERY_BAR
+    bool "Battery level bar along the top of the keymap display"
+    depends on KLOR_STATUS_SCREEN
+    depends on ZMK_BATTERY_REPORTING
+    default y
+    help
+      Draws a 2 px rule across the top of the OLED whose length is the charge
+      level. Each half shows its own cell.
+
+      A 1 Hz blink means charging. Solid means not charging -- which covers
+      both "running on battery" and "finished", since the bar's length already
+      distinguishes those.
+
+      Charging is detected by reading VBUS from the nRF52840 POWER peripheral
+      rather than through ZMK's USB API, because ZMK_USB depends on being the
+      central and so cannot exist on the peripheral at all.
+
+      "Finished" is inferred, not measured. The nice!nano v2 routes no charge
+      status to the MCU, so the only available test is "USB present and the
+      level has reached KLOR_BATTERY_FULL_PCT". It errs early: VDDH carries the
+      charger's output while plugged in rather than the resting cell voltage,
+      so the reading runs high and the blink stops before the cell is truly
+      full.
+
+config KLOR_BATTERY_FULL_PCT
+    int "Charge level counted as full, percent"
+    depends on KLOR_BATTERY_BAR
+    range 50 100
+    default 100
+    help
+      At or above this, the bar stops blinking even with USB connected. Lower
+      it if the blink never stops; raise it if it stops far too early.

@@ -95,6 +95,20 @@
 #define KLOR_SHOW_LINK_STATUS 0
 #endif
 
+/* Guarded on the Kconfig symbol, not KLOR_SHOW_BATTERY: that is defined further
+ * down with the geometry, so testing it here would silently skip both includes
+ * and leave the calls below as implicit declarations. */
+#if IS_ENABLED(CONFIG_KLOR_BATTERY_BAR)
+#include <zmk/battery.h>
+/*
+ * VBUS is read straight from the nRF52840 POWER peripheral rather than through
+ * ZMK's USB API, and that is not a shortcut -- ZMK_USB is declared
+ * "depends on (!ZMK_SPLIT || ZMK_SPLIT_ROLE_CENTRAL)", so the peripheral cannot
+ * have it at all. This register works the same on both halves.
+ */
+#include <hal/nrf_power.h>
+#endif
+
 #include "keymap_glyphs.h"
 
 LOG_MODULE_REGISTER(klor_status, LOG_LEVEL_INF);
@@ -167,9 +181,36 @@ static inline int local_col(int c) {
 #define CANVAS_W 128
 #define CANVAS_H 64
 
-/* Centre the block in the leftover 7x4 px. */
+/*
+ * BATTERY BAR. A 2 px rule along the very top, its length the charge level.
+ * Each half shows its own cell -- the battery is local hardware and
+ * zmk_battery_state_of_charge() reads it on both boards.
+ *
+ * Blinking at 1 Hz means charging. Solid means not charging, which covers both
+ * "on battery" and "finished" -- the bar's own length tells those apart.
+ *
+ * WHAT "FINISHED" ACTUALLY MEANS HERE. The nice!nano v2 exposes no charge
+ * status to the MCU: its board overlay declares vbatt (zmk,battery-nrf-vddh)
+ * and an EXT_POWER pin, and nothing else. So "charging" is inferred as
+ * "USB present and not yet at KLOR_BATTERY_FULL_PCT". That reads optimistically
+ * on purpose-built hardware and doubly so here, because VDDH carries the
+ * charger's output while plugged in rather than the resting cell voltage -- it
+ * will call the battery full before it is. Treat the solid bar as "topping
+ * off", not "done".
+ */
+#if IS_ENABLED(CONFIG_KLOR_BATTERY_BAR)
+#define KLOR_SHOW_BATTERY 1
+#define BATT_BAR_H 2
+/* The bar plus one blank pixel, so it never touches the top row of glyphs. */
+#define TOP_RESERVED (BATT_BAR_H + 1)
+#else
+#define KLOR_SHOW_BATTERY 0
+#define TOP_RESERVED 0
+#endif
+
+/* Centre the block in what is left once the bar has taken its strip. */
 #define ORIGIN_X ((CANVAS_W - TEXT_W) / 2)
-#define ORIGIN_Y ((CANVAS_H - TEXT_H) / 2)
+#define ORIGIN_Y (TOP_RESERVED + ((CANVAS_H - TOP_RESERVED - TEXT_H) / 2))
 
 /*
  * The pressed-key highlight: a square, sized to sit inside the lattice without
@@ -332,6 +373,40 @@ static void draw_link_mark(void) {
 }
 #endif /* KLOR_SHOW_LINK_STATUS */
 
+#if KLOR_SHOW_BATTERY
+
+static uint8_t batt_soc;
+static bool batt_charging;
+static bool batt_blink_on = true;
+
+static inline bool vbus_present(void) {
+    return nrf_power_usbregstatus_vbusdet_get(NRF_POWER);
+}
+
+/* Drawn inside the layer, so it is dispatched with everything else. */
+static void draw_battery(lv_layer_t *l) {
+    if (batt_charging && !batt_blink_on) {
+        return; /* the dark half of the blink */
+    }
+
+    int w = (batt_soc * CANVAS_W) / 100;
+    if (w <= 0) {
+        /* Keep one pixel at empty: a bar that vanishes entirely is
+         * indistinguishable from the feature being broken. */
+        w = 1;
+    }
+
+    lv_draw_rect_dsc_t bar;
+    lv_draw_rect_dsc_init(&bar);
+    bar.bg_color = ON_GLASS_WHITE;
+    bar.bg_opa = LV_OPA_COVER;
+
+    lv_area_t area = {0, 0, w - 1, BATT_BAR_H - 1};
+    lv_draw_rect(l, &bar, &area);
+}
+
+#endif /* KLOR_SHOW_BATTERY */
+
 static void render(void) {
     if (!keymap_canvas) {
         return;
@@ -354,6 +429,10 @@ static void render(void) {
     bg.bg_opa = LV_OPA_COVER;
     lv_area_t full = {0, 0, CANVAS_W - 1, CANVAS_H - 1};
     lv_draw_rect(&l, &bg, &full);
+
+#if KLOR_SHOW_BATTERY
+    draw_battery(&l);
+#endif
 
     /* The keymap itself, white on black. */
     lv_draw_label_dsc_t txt;
@@ -521,6 +600,46 @@ ZMK_SUBSCRIPTION(klor_layer_widget, zmk_layer_state_changed);
  */
 static uint64_t held_acc;
 
+#if KLOR_SHOW_BATTERY
+
+/*
+ * One timer drives both jobs, because neither has an event to hang off.
+ * zmk_battery_state_changed exists, but VBUS has no event at all on the
+ * peripheral, so something has to poll -- and once it is polling, reading the
+ * cached charge level in the same pass is free.
+ *
+ * It runs on the display queue, so it can call render() directly instead of
+ * marshalling. Nothing is redrawn unless something actually changed; while
+ * charging, the blink phase changes every tick, which is the redraw.
+ */
+#define BATT_TICK_CHARGING_MS 500 /* two ticks per second = 1 Hz blink */
+#define BATT_TICK_IDLE_MS     2000
+
+static void batt_work_cb(struct k_work *work);
+static K_WORK_DELAYABLE_DEFINE(batt_work, batt_work_cb);
+
+static void batt_work_cb(struct k_work *work) {
+    uint8_t soc = zmk_battery_state_of_charge();
+    bool charging = vbus_present() && soc < CONFIG_KLOR_BATTERY_FULL_PCT;
+
+    /* Solid whenever not charging, so a stopped blink always leaves the bar
+     * visible rather than possibly stranded in its dark phase. */
+    bool blink = charging ? !batt_blink_on : true;
+
+    if (soc != batt_soc || charging != batt_charging || blink != batt_blink_on) {
+        batt_soc = soc;
+        batt_charging = charging;
+        batt_blink_on = blink;
+        render();
+    }
+
+    k_work_reschedule_for_queue(
+        zmk_display_work_q(), &batt_work,
+        K_MSEC(charging ? BATT_TICK_CHARGING_MS : BATT_TICK_IDLE_MS));
+}
+
+#endif /* KLOR_SHOW_BATTERY */
+
 static void set_key_cb(struct key_state state) {
     /* A redraw is a full canvas repaint and a full-panel I2C flush, so it must
      * not happen unless the picture actually changes. Without this the screen
@@ -630,7 +749,16 @@ lv_obj_t *zmk_display_status_screen(void) {
 #if KLOR_SHOW_LINK_STATUS
     link_connected = zmk_split_bt_peripheral_is_connected();
 #endif
+#if KLOR_SHOW_BATTERY
+    batt_soc = zmk_battery_state_of_charge();
+    batt_charging = vbus_present() && batt_soc < CONFIG_KLOR_BATTERY_FULL_PCT;
+    batt_blink_on = true;
+#endif
     render();
+
+#if KLOR_SHOW_BATTERY
+    k_work_reschedule_for_queue(zmk_display_work_q(), &batt_work, K_MSEC(BATT_TICK_IDLE_MS));
+#endif
 
 #if KLOR_HAS_LAYER_STATE
     klor_layer_widget_init();

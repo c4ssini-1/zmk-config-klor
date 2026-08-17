@@ -169,6 +169,16 @@ spread across the whole panel with a dot lattice between them:
 number of keys can be highlighted at once. That needs per-pixel control, so the screen is
 drawn into a 1-bpp LVGL canvas rather than built from labels.
 
+A **2 px bar along the top** of each screen shows that half's battery level by length. It
+**blinks at 1 Hz while charging** and sits solid otherwise.
+
+"Charging" is real — VBUS is read straight from the nRF52840's power peripheral, which works
+on the peripheral half too, where ZMK's USB support cannot be enabled. "Finished" is a guess:
+the nice!nano v2 gives the MCU no charge status at all, so the bar stops blinking once the
+reported level reaches `KLOR_BATTERY_FULL_PCT`. That runs early, because the measured rail
+carries the charger's output rather than the resting cell voltage. Lower the threshold if the
+blink never stops.
+
 The glyphs are generated from the keymap by
 [`scripts/gen_keymap_glyphs.py`](scripts/gen_keymap_glyphs.py). **Re-run it after any keymap
 change** or the display will confidently show the wrong keys.

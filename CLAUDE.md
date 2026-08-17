@@ -237,6 +237,18 @@ Implementation notes worth keeping:
   snapshot survives. A state of "which key just changed" would therefore drop events and
   leave highlights stuck on. Carrying the whole held set as a bitmask makes a coalesced
   update still correct.
+- **The battery bar is 2 px along the top, and it moved the keymap down.** `TOP_RESERVED`
+  feeds `ORIGIN_Y`, so enabling or disabling `KLOR_BATTERY_BAR` reflows the grid — check the
+  link badge still fits when changing it. Charging is read from the nRF52840 POWER
+  peripheral via `nrf_power_usbregstatus_vbusdet_get()`, **not** ZMK's USB API, because
+  `ZMK_USB` is declared `depends on (!ZMK_SPLIT || ZMK_SPLIT_ROLE_CENTRAL)` and so cannot
+  exist on the peripheral at all. "Finished charging" is *inferred* — the nice!nano v2 routes
+  no charge status to the MCU (its overlay has only `vbatt` and `EXT_POWER`) — and it errs
+  early, because VDDH carries the charger's output rather than the resting cell voltage.
+- **Guard includes on `CONFIG_*`, not on the local `KLOR_SHOW_*` macros.** Those are defined
+  down with the geometry, well below the include block, so an `#if KLOR_SHOW_BATTERY` around
+  an `#include` silently evaluates false and leaves the calls as implicit declarations. This
+  cost a compile.
 - **The panel runs inverted, and the canvas must absorb it.** `klor_common.dtsi` declares
   the SSD1306 with `inversion-on`, so a pixel LVGL considers white lands on the glass dark.
   `klor_status_screen.c` therefore draws through `ON_GLASS_WHITE`/`ON_GLASS_BLACK`, which
